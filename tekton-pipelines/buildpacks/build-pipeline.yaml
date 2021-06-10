@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: build-pipeline
+  name: buildpack-build-pipeline
 spec:
   description: >-
     Pipeline will only build the image utilizing buildpacks and then send notification via slack.

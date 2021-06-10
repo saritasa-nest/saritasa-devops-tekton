@@ -4,7 +4,7 @@
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
-  name: build-pipeline-trigger-template
+  name: buildpack-build-pipeline-trigger-template
 spec:
   params:
     - name: application
@@ -37,7 +37,7 @@ spec:
         - taskName: kustomize
           serviceAccountName: $(tt.params.application)-build-pipeline-kustomize-sa
       pipelineRef:
-        name: build-pipeline
+        name: buildpack-build-pipeline
       params:
         - name: "application"
           value: "$(tt.params.application)"

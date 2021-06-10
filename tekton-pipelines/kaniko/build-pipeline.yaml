@@ -62,7 +62,7 @@ spec:
 
     - name: kustomize
       taskRef:
-        name: kustomize-kaniko
+        name: kustomize
       resources:
         inputs:
           - name: kubernetes-repo
@@ -83,7 +83,7 @@ spec:
     
     - name: argocd-deploy
       taskRef:
-        name: argocd-deploy-kaniko
+        name: argocd-deploy
       params:
         - name : argocd_application_name
           value: "$(params.application)"
@@ -93,7 +93,7 @@ spec:
   finally:
     - name: slack-notification
       taskRef:
-        name: slack-notification-kaniko
+        name: slack-notification
       params:
         - name: application
           value: "$(params.application)"
