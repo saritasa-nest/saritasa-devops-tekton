@@ -1,0 +1,43 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: argocd-deploy-kaniko
+spec:
+  params:
+    - name: argocd_application_name
+    - name: argocd_version
+      default: v2.0.1
+
+  stepTemplate:
+    envFrom:
+      - configMapRef:
+          name: $(params.argocd_application_name)-build-pipeline-config # project specific values
+      - secretRef:
+          name: $(params.argocd_application_name)-argocd-secret  # used for authentication (username/password or auth token)
+  steps:
+    - name: deploy
+      image: argoproj/argocd:$(params.argocd_version)
+      script: |
+        #!/bin/bash
+        argocd login $ARGOCD_SERVER \
+          --grpc-web \
+          --grpc-web-root-path $ARGOCD_ROOT_PATH \
+          --username $ARGOCD_USERNAME \
+          --password $ARGOCD_PASSWORD
+
+        argocd app sync $(params.argocd_application_name) \
+          --grpc-web \
+          --grpc-web-root-path $ARGOCD_ROOT_PATH \
+          --server $ARGOCD_SERVER
+        
+        argocd app wait $(params.argocd_application_name) \
+          --health \
+          --grpc-web \
+          --grpc-web-root-path $ARGOCD_ROOT_PATH \
+          --server $ARGOCD_SERVER
+
+        # jq is not available in this image
+        # synced=`argocd app get $(params.argocd_application_name) -o json | jq .status.sync.status | tr -d \"`
+        # synced=`argocd app get $(params.argocd_application_name) | grep "Sync Status" | awk '{print $3}'`
+        healthy=`argocd app get $(params.argocd_application_name) | grep "Health Status:" | awk '{print $3}'`
+        [[ "$healthy" == "Healthy" ]] && echo "Sync completed succcessfully" || (echo "Failed" && exit 1)

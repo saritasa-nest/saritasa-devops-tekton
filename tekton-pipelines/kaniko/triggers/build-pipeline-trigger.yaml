@@ -1,0 +1,95 @@
+# You can set webhooks here
+# https://github.com/saritasa-nest/saritasa-crm-backend/settings/hooks
+#
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: kaniko-build-pipeline-trigger-template
+spec:
+  params:
+    - name: application
+    - name: sha
+    - name: head_commit
+    - name: head_commit_message
+    - name: pusher_name
+    - name: pusher_email
+    - name: pusher_avatar
+    - name: pusher_url
+    - name: repository_url
+    - name: repository_ssh_url
+    - name: environment
+    - name: branch
+    - name: docker_registry
+    - name: docker_registry_repository
+    - name: docker_file
+    - name: docker_context
+  
+  resourcetemplates:
+  - kind: PipelineRun
+    apiVersion: tekton.dev/v1beta1
+    metadata:
+      generateName: $(tt.params.application)-kaniko-build-pipeline-run-
+    spec:
+      serviceAccountName: $(tt.params.application)-build-pipeline-sa
+      serviceAccountNames:
+        - taskName: kustomize
+          serviceAccountName: $(tt.params.application)-build-pipeline-kustomize-sa
+      pipelineRef:
+        name: kaniko-build-pipeline
+      params:
+        - name: "application"
+          value: "$(tt.params.application)"
+        - name: sha
+          value: "$(tt.params.sha)"
+        - name: head_commit
+          value: "$(tt.params.head_commit)"
+        - name: head_commit_message
+          value: "$(tt.params.head_commit_message)"
+        - name: pusher_name
+          value: "$(tt.params.pusher_name)"
+        - name: pusher_email
+          value: "$(tt.params.pusher_email)"
+        - name: pusher_avatar
+          value: "$(tt.params.pusher_avatar)"
+        - name: pusher_url
+          value: "$(tt.params.pusher_url)"
+        - name: repository_url
+          value: "$(tt.params.repository_url)"
+        - name: repository_ssh_url
+          value: "$(tt.params.repository_ssh_url)"
+        - name: environment
+          value: "$(tt.params.environment)"
+        - name: branch
+          value: "$(tt.params.branch)"
+        - name: docker_registry
+          value: "$(tt.params.docker_registry)"
+        - name: docker_registry_repository
+          value: "$(tt.params.docker_registry_repository)"
+        - name: docker_file
+          value: "$(tt.params.docker_file)"
+        - name: docker_context
+          value: "$(tt.params.docker_context)"
+          
+      resources:
+        - name: app
+          resourceSpec:
+            type: git
+            params:
+              - name: url
+                value: $(tt.params.repository_ssh_url)
+              - name: revision
+                value: $(tt.params.head_commit)
+        - name: image
+          resourceSpec:
+            type: image
+            params:
+              - name: url
+                value: $(tt.params.docker_registry_repository):$(tt.params.environment)-$(tt.params.sha)
+
+      workspaces:
+      - name: source
+        persistentVolumeClaim:
+          claimName: $(tt.params.application)-workspace-pvc
+      podTemplate:
+        nodeSelector:
+          ci: "true"

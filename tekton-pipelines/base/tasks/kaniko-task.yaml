@@ -1,0 +1,73 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+spec:
+  description: >-
+    This is task for legacy Saritasa projects written with Dockerfile, compilation is done by using Kaniko
+    https://www.baeldung.com/ops/kaniko
+
+  workspaces:
+    - name: source
+
+  resources:
+    inputs:
+      - name: app
+        type: git
+    outputs:
+      - name: image
+        type: image
+
+  params:
+    - name: application
+      description: The name of the application being built
+    - name: docker_registry
+      description: "AWS Private ecr registry address"
+    - name: environment
+    - name: docker_file
+      default: "Dockerfile"
+    - name: docker_context
+      description: |
+        The build context used by Kaniko
+        (https://github.com/GoogleContainerTools/kaniko#kaniko-build-contexts)
+      default: "."
+      
+  
+  results:
+    - name: password
+      description: The password to authenticate to ecr registry.
+  
+
+  stepTemplate:
+    env:
+      - name: CNB_PLATFORM_API
+        value: "0.4"
+    envFrom:
+      - configMapRef:
+          name: $(params.application)-build-pipeline-config # project specific values
+
+  steps:
+    - name: authenticate
+      workingDir: $(resources.inputs.app.path)
+      image: docker.io/amazon/aws-cli:2.0.52@sha256:1506cec98a7101c935176d440a14302ea528b8f92fcaf4a6f1ea2d7ecef7edc4 #tag: 2.0.52
+      script: |
+        #!/bin/bash
+        aws ecr get-login-password --region $AWS_REGION > $(results.password.path)
+    
+    - name: build
+      workingDir: $(resources.inputs.app.path)
+      image: gcr.io/kaniko-project/executor@sha256:0fae223f496525e31226cde473ec77ed15abfa8cbabff5ff5bf1c5268355bbb0 # tag 1.6.0
+      env:
+        - name: "DOCKER_CONFIG"
+          value: "/tekton/home/.docker/"
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile=$(resources.inputs.app.path)/$(params.docker_file)
+        - --context=$(resources.inputs.app.path)/$(params.docker_context)
+        - --destination=$(resources.outputs.image.url)
+        # - --verbosity=debug
+
+      securityContext:
+        runAsUser: 0
+      

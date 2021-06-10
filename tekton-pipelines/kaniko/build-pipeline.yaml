@@ -1,0 +1,120 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: kaniko-build-pipeline
+spec:
+  description: >-
+    Pipeline will only build the image utilizing dockerfile using kaniko and then send notification via slack.
+    The deployment is done via argocd
+
+  params:
+    - name: application
+    - name: sha
+    - name: head_commit
+    - name: head_commit_message
+    - name: pusher_name
+    - name: pusher_email
+    - name: pusher_avatar
+    - name: pusher_url
+    - name: repository_url
+    - name: repository_ssh_url
+    - name: branch
+    - name: docker_registry
+    - name: docker_registry_repository
+    - name: environment
+    - name: docker_file
+    - name: docker_context
+    
+  workspaces:
+    - name: source
+
+  resources:
+    - name: app
+      type: git
+    - name: image
+      type: image
+  
+  tasks:
+    - name: kaniko
+      taskRef:
+        name: kaniko
+      resources:
+          inputs:
+            - name: app
+              resource: app
+          outputs:
+              - name: image
+                resource: image
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: docker_registry
+          value: $(params.docker_registry)
+        - name: environment
+          value: "$(params.environment)"
+        - name: docker_file
+          value: "$(params.docker_file)"
+        - name: docker_context
+          value: "$(params.docker_context)"
+      workspaces:
+        - name: source
+          workspace: source  
+
+    - name: kustomize
+      taskRef:
+        name: kustomize-kaniko
+      resources:
+        inputs:
+          - name: kubernetes-repo
+            resource: app
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: branch
+          value: $(params.branch)
+        - name: image
+          value: "$(params.docker_registry_repository):$(params.environment)-$(params.sha)"
+        - name: kustomize_overlay_path
+          value: ".kubernetes/manifests/"
+        - name: environment
+          value: "$(params.environment)"
+      runAfter: 
+        - kaniko
+    
+    - name: argocd-deploy
+      taskRef:
+        name: argocd-deploy-kaniko
+      params:
+        - name : argocd_application_name
+          value: "$(params.application)"
+      runAfter: 
+        - kustomize
+    
+  finally:
+    - name: slack-notification
+      taskRef:
+        name: slack-notification-kaniko
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: head_commit
+          value: "$(params.head_commit)"
+        - name: head_commit_message
+          value: "$(params.head_commit_message)"
+        - name: pusher_name
+          value: "$(params.pusher_name)"
+        - name: pusher_email
+          value: "$(params.pusher_email)"
+        - name: pusher_avatar
+          value: "$(params.pusher_avatar)"
+        - name: pusher_url
+          value: "$(params.pusher_url)"
+        - name: repository_url
+          value: "$(params.repository_url)"
+        - name: branch
+          value: "$(params.branch)"
+        - name: environment
+          value: "$(params.environment)"
+        - name: status
+          value: "$(tasks.argocd-deploy.status)"
+

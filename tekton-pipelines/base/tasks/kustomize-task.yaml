@@ -1,0 +1,53 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kustomize-kaniko
+spec:
+  description: >-
+    Updates image tag in the kustomize overlay of the app
+
+  resources:
+    inputs:
+      - name: kubernetes-repo
+        type: git
+
+  params:
+    - name: application
+    - name: branch
+      description: git branch
+    - name: image
+      description: New image for the application
+    - name: kustomize_overlay_path
+      description: Overlay path for kustomize call
+    - name: environment
+  
+  stepTemplate:
+    envFrom:
+      - configMapRef:
+          name: $(params.application)-build-pipeline-config # project specific values
+
+  steps:
+    - name: prepare
+      image: alpine/git
+      script: |
+        git config --global user.email "$DEVOPS_GROUP_EMAIL"
+        git config --global user.name "tekton-kustomize"
+
+    - name: update
+      image: k8s.gcr.io/kustomize/kustomize:v3.8.7
+      script: |
+        cd $(inputs.resources.kubernetes-repo.path)/$(params.kustomize_overlay_path)/$(params.environment) && /app/kustomize edit set image $(params.application)=$(params.image)
+        cat $(inputs.resources.kubernetes-repo.path)/$(params.kustomize_overlay_path)/$(params.environment)/kustomization.yaml
+    
+    - name: push
+      image: alpine/git
+      script: |
+        cd $(inputs.resources.kubernetes-repo.path)
+        # the params.branch comes from github push event and looks like this: "refs/heads/staging"
+        # so we had to get only the end of the string
+        branch=`echo $(params.branch)| awk -F\/ '$0=$3'`
+        # git checkout $branch
+        git commit -am "kubernetes modification for $(params.kustomize_overlay_path)/$(params.environment) new image: $(params.image)"
+        mkdir /root/.ssh && cp -r $HOME/.ssh/* /root/.ssh
+        # git push
+        git push origin HEAD:$branch

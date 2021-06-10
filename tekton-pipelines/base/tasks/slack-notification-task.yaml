@@ -1,0 +1,99 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:     
+  name: slack-notification-kaniko
+spec:
+  description: >-
+    Send slack notification with various information about pipeline progress/result.
+    You can see my question about dealing with task status here: https://github.com/tektoncd/pipeline/issues/3762
+
+  params:
+    - name: application
+    - name: head_commit
+    - name: head_commit_message
+    - name: pusher_name
+    - name: pusher_email
+    - name: pusher_avatar
+    - name: pusher_url
+    - name: repository_url
+    - name: environment
+    - name: branch
+    - name: status
+  
+  stepTemplate:
+    envFrom:
+      - configMapRef:
+          name: $(params.application)-build-pipeline-config
+      - secretRef:
+          name: $(params.application)-slack-secret  # used for webhook URL
+    env:
+      - name: POD_NAME
+        valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+  steps:
+    - name: notification
+      image: cloudposse/slack-notifier:sha-d5f4cf0
+      script: |
+        #!/bin/sh
+        
+        # let's obtain a random pipelinerun token from the pod name
+        # which looks like this
+        # build-pipeline-run-6hqdt
+        # so we can then build the proper URL to the tekton dashboard
+        # with results of that Pipeline
+        # pipeline_token=`echo $POD_NAME | awk -F- '$0=$5'`
+        pipeline_run_name=`echo $POD_NAME | awk -v search="[0-9a-zA-Z-]+$TEKTON_PIPELINE_NAME-run-[a-z0-9]+" 'match($0, search) { print substr( $0, RSTART, RLENGTH )}'`
+        status="`echo $(params.status) | tr '[:upper:]' '[:lower:]'`"
+
+        echo "result: $status"
+
+        if [ "$status" = "succeeded" ]; then
+          color="good"
+          thumb_url="$(params.pusher_avatar)"
+          text_status="The latest changes have been deployed successfully"
+          title="$(params.environment) environment update $status"
+          title="`echo $title | awk '{print toupper(substr($0,0,1))tolower(substr($0,2))}'`"
+
+        else
+          color="danger"
+          thumb_url="$SLACK_FAILURE_ICON_URL"
+          text_status="The latest changes failed to be deployed"
+          title="$(params.environment) environment update failed"
+          title="`echo $title | awk '{print toupper(substr($0,0,1))tolower(substr($0,2))}'`"
+        fi
+
+        slack-notifier \
+        -user_name "Tekton" \
+        -icon_emoji ":white_check_mark:" \
+        -color "$color" \
+        -pretext "$(params.application) | $(params.head_commit_message)" \
+        -author_name "$(params.pusher_name)" \
+        -author_link "$(params.pusher_url)" \
+        -title "$title" \
+        -title_link "$APPLICATION_URL" \
+        -text "$text_status" \
+        -thumb_url "$thumb_url" \
+        -field1_title "App" \
+        -field1_value "$(params.application)" \
+        -field1_short true \
+        -field2_title "Environment" \
+        -field2_value "$(params.environment)" \
+        -field2_short true \
+        -field3_title "Branch:Rev" \
+        -field3_value "$(params.branch):$(params.head_commit)" \
+        -field3_short false \
+        -field4_title "Github Repository" \
+        -field4_value "$(params.repository_url)" \
+        -field4_short false \
+        -field5_title "Github Repository Issues" \
+        -field5_value "$(params.repository_url)/issues" \
+        -field5_short false \
+        -field6_title "Jira" \
+        -field6_value "$JIRA_PROJECT_URL" \
+        -field6_short false \
+        -field7_title "Tekton Pipeline Output" \
+        -field7_value "$TEKTON_URL/$pipeline_run_name" \
+        -field7_short false 
+        
