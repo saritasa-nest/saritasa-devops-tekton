@@ -7,10 +7,9 @@ namespace: ci
 # Kustomize will add the namespace and labels to all files being kustomized
 #
 commonLabels:
-  pipeline: tekton
+  pipeline: buildpacks
   deploy: argocd
 
 resources:
-  - ../base
   - triggers/build-pipeline-trigger.yaml
   - build-pipeline.yaml
