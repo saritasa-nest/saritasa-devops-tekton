@@ -61,7 +61,7 @@ spec:
         value: "0.4"
     envFrom:
       - configMapRef:
-          name: $(params.application)-$(params.environment)-build-pipeline-config # project specific values
+          name: $(params.application)-build-pipeline-config # project specific values
 
   steps:
     - name: prepare
