@@ -158,7 +158,7 @@ spec:
 
         # build image utilizing backpack
         /cnb/lifecycle/creator \
-          -app=app/$(params.source_subpath) \
+          -app=/workspace/app/$(params.source_subpath) \
           -project-metadata=/workspace/app/project.toml \
           -cache-dir=/cache \
           -layers=/layers \
