@@ -2,6 +2,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: buildpack
+  namespace: ci
 spec:
   description: >-
     The Buildpacks task builds source into a container image and pushes it to a AWS ECR registry,
@@ -41,6 +42,9 @@ spec:
     - name: process_type
       description: The default process type to set on the image.
       default: "web"
+    - name: cloud_cli
+      description: What CLI should be used during build (i.e. "azure", "aws")
+      default: "aws"
     - name: source_subpath
       description: A subpath within the `source` input where the source to build is located.
       default: ""
@@ -91,6 +95,7 @@ spec:
       script: |
         #!/usr/bin/env bash
         set -e
+        cd /workspace
 
         # python related
         # we should have a requirements.txt file in the build folder for our buildpack to work correctly
@@ -122,6 +127,8 @@ spec:
       image: node:14
       script: |
         #!/bin/bash
+        cd /workspace
+
         # nodejs related
         if [ -f app/package.json ]; then
           cd app
@@ -154,7 +161,7 @@ spec:
       script: |
         #!/bin/bash
 
-        aws ecr get-login-password --region $AWS_REGION | docker login -u AWS --password-stdin $(params.docker_registry)
+        docker login $(params.docker_registry) --username "$AZURE_SP_APP_ID" --password "$AZURE_SP_PASSWORD"
 
         # build image utilizing backpack
         /cnb/lifecycle/creator \
@@ -172,7 +179,17 @@ spec:
           -previous-image=$(resources.outputs.image.url) \
           -run-image=$(params.run_image) \
           $(resources.outputs.image.url)
-
+      env:
+        - name: AZURE_SP_APP_ID
+          valueFrom:
+            secretKeyRef:
+              name: aks-pod-sp-secret
+              key: app-id
+        - name: AZURE_SP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: aks-pod-sp-secret
+              key: password
       volumeMounts:
         - name: layers-dir
           mountPath: /layers

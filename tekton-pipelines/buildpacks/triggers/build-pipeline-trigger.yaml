@@ -23,6 +23,8 @@ spec:
     - name: docker_registry_repository
     - name: buildpack_builder_image
     - name: buildpack_runner_image
+    - name: cloud_cli
+      default: "aws"
     - name: source_subpath
       default: ""
 
@@ -71,6 +73,8 @@ spec:
           value: "$(tt.params.buildpack_builder_image)"
         - name: buildpack_runner_image
           value: "$(tt.params.buildpack_runner_image)"
+        - name: cloud_cli
+          value: "$(tt.params.cloud_cli)"
         - name: source_subpath
           value: "$(tt.params.source_subpath)"
 
