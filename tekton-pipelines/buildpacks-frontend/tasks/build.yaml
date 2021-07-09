@@ -113,7 +113,7 @@ spec:
       script: |
         #!/bin/bash
 
-        aws ecr get-login-password --region $AWS_REGION | docker login -u AWS --password-stdin $(params.docker_registry)
+        docker login $(params.docker_registry) --username "$AZURE_SP_APP_ID" --password "$AZURE_SP_PASSWORD"
 
         # build image utilizing backpack
         /cnb/lifecycle/creator \
@@ -132,6 +132,17 @@ spec:
           -run-image=$(params.run_image) \
           $(resources.outputs.image.url)
 
+      env:
+        - name: AZURE_SP_APP_ID
+          valueFrom:
+            secretKeyRef:
+              name: aks-pod-sp-secret
+              key: app-id
+        - name: AZURE_SP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: aks-pod-sp-secret
+              key: password
       volumeMounts:
         - name: layers-dir
           mountPath: /layers
