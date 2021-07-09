@@ -24,7 +24,6 @@ spec:
     - name: docker_registry
     - name: docker_registry_repository
     - name: environment
-    - name: cloud_cli
     - name: source_subpath
 
   workspaces:
@@ -60,8 +59,6 @@ spec:
           value: $(params.application)-buildpacks-cache
         - name: environment
           value: "$(params.environment)"
-        - name: cloud_cli
-          value: "$(params.cloud_cli)"
         - name: source_subpath
           value: "$(params.source_subpath)"
       workspaces:
