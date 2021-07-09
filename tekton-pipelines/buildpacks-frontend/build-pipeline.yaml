@@ -103,7 +103,7 @@ spec:
       taskRef:
         name: argocd-deploy
       params:
-        - name : application
+        - name : argocd_application_name
           value: "$(params.application)"
         - name: environment
           value: "$(params.environment)"

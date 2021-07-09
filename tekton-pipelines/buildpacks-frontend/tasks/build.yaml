@@ -91,6 +91,8 @@ spec:
       image: node:14
       script: |
         #!/bin/bash
+        cd /workspace
+
         # nodejs related
         if [ -f app/package.json ]; then
           cd app
@@ -112,6 +114,7 @@ spec:
       imagePullPolicy: Always
       script: |
         #!/bin/bash
+        cd /workspace
 
         docker login $(params.docker_registry) --username "$AZURE_SP_APP_ID" --password "$AZURE_SP_PASSWORD"
 
