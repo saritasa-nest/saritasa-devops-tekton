@@ -1,0 +1,149 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: buildpack-frontend
+spec:
+  description: >-
+    The Buildpacks task builds source into a container image and pushes it to a AWS ECR registry,
+    using Cloud Native Buildpacks.
+
+  workspaces:
+    - name: source
+
+  resources:
+    inputs:
+      - name: app
+        type: git
+    outputs:
+      - name: image
+        type: image
+
+  params:
+    - name: application
+      description: The name of the application being built
+    - name: builder_image
+      description: The image on which builds will run (must include lifecycle and compatible buildpacks).
+    - name: cache
+      description: The name of the persistent app cache volume.
+      default: empty-dir
+    - name: cache_image
+      description: The name of the persistent app cache image.
+      default: ""
+    - name: platform_dir
+      description: The name of the platform directory.
+      default: empty-dir
+    - name: user_id
+      description: The user ID of the builder image user.
+      default: "1000"
+    - name: group_id
+      description: The group ID of the builder image user.
+      default: "1000"
+    - name: process_type
+      description: The default process type to set on the image.
+      default: "web"
+    - name: source_subpath
+      description: A subpath within the `source` input where the source to build is located.
+      default: ""
+    - name: skip_restore
+      description: Do not write layer metadata or restore cached layers
+      default: "false"
+    - name: run_image
+      description: Reference to a run image to use
+      default: ""
+    - name: docker_registry
+      description: "AWS Private ecr registry address"
+    - name: environment
+
+
+  stepTemplate:
+    env:
+      - name: CNB_PLATFORM_API
+        value: "0.4"
+    envFrom:
+      - configMapRef:
+          name: $(params.application)-build-pipeline-config # project specific values
+
+  steps:
+    - name: prepare
+      # Latest alpine as of Oct 22, 2020
+      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
+      imagePullPolicy: Always
+      script: |
+          #!/usr/bin/env bash
+          set -e
+
+          chown -R "$(params.user_id):$(params.group_id)" "/tekton/home" &&
+          chown -R "$(params.user_id):$(params.group_id)" "/layers" &&
+          chown -R "$(params.user_id):$(params.group_id)" "/cache" &&
+          chown -R "$(params.user_id):$(params.group_id)" "$(workspaces.source.path)"
+          chown -R "$(params.user_id):$(params.group_id)" "$(resources.inputs.app.path)"
+
+      volumeMounts:
+        - name: layers-dir
+          mountPath: /layers
+        - name: $(params.cache)
+          mountPath: /cache
+      securityContext:
+        privileged: true
+
+    
+    - name: nodejs
+      image: node:14
+      script: |
+        #!/bin/bash
+        # nodejs related
+        if [ -f app/package.json ]; then
+          cd app
+          yes | npm install --silent
+          npm run build:$(params.environment) || echo "unable to build $(params.environment)"
+          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*} $(params.source_subpath) 2>/dev/null
+          chown -R $(params.user_id):$(params.group_id) $(params.source_subpath)
+
+        else
+          echo "unable to find package.json" && exit 1;
+        fi
+      securityContext:
+        privileged: true
+
+    # if you need to debug this step you can do:
+    # k exec -ti `k --no-headers=true get pods -l tekton.dev/task=buildpack | awk '{print $1}'` -c step-create bash
+    - name: build
+      image: $(params.builder_image)
+      imagePullPolicy: Always
+      script: |
+        #!/bin/bash
+
+        aws ecr get-login-password --region $AWS_REGION | docker login -u AWS --password-stdin $(params.docker_registry)
+
+        # build image utilizing backpack
+        /cnb/lifecycle/creator \
+          -app=app/$(params.source_subpath) \
+          -project-metadata=/workspace/app/project.toml \
+          -cache-dir=/cache \
+          -layers=/layers \
+          -platform=/platform \
+          -report=/layers/report.toml \
+          -cache-image=$(params.cache_image) \
+          -uid=$(params.user_id) \
+          -gid=$(params.group_id) \
+          -process-type=$(params.process_type) \
+          -skip-restore=$(params.skip_restore) \
+          -previous-image=$(resources.outputs.image.url) \
+          -run-image=$(params.run_image) \
+          $(resources.outputs.image.url)
+
+      volumeMounts:
+        - name: layers-dir
+          mountPath: /layers
+        - name: $(params.cache)
+          mountPath: /cache
+        - name: $(params.platform_dir)
+          mountPath: /platform
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+  volumes:
+    - name: empty-dir
+      emptyDir: {}
+    - name: layers-dir
+      emptyDir: {}
