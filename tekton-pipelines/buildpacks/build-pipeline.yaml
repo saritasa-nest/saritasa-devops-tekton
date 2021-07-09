@@ -25,6 +25,8 @@ spec:
     - name: docker_registry_repository
     - name: environment
     - name: source_subpath
+    - name: kubernetes_repository_kustomize_path
+      default: ".kubernetes/manifests/"
 
   workspaces:
     - name: source
@@ -80,7 +82,7 @@ spec:
         - name: image
           value: "$(params.docker_registry_repository):$(params.environment)-$(params.sha)"
         - name: kustomize_overlay_path
-          value: ".kubernetes/manifests/"
+          value: "$(params.kubernetes_repository_kustomize_path)"
         - name: environment
           value: "$(params.environment)"
       runAfter:

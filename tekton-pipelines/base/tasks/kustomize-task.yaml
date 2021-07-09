@@ -14,6 +14,7 @@ spec:
   params:
     - name: application
     - name: project
+      default: ""
     - name: branch
       description: git branch
     - name: image

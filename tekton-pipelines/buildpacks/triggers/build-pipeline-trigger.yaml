@@ -25,6 +25,7 @@ spec:
     - name: buildpack_runner_image
     - name: source_subpath
       default: ""
+    - name: kubernetes_repository_kustomize_path
 
   resourcetemplates:
   - kind: PipelineRun
@@ -73,6 +74,8 @@ spec:
           value: "$(tt.params.buildpack_runner_image)"
         - name: source_subpath
           value: "$(tt.params.source_subpath)"
+        - name: kubernetes_repository_kustomize_path
+          value: "$(tt.params.kubernetes_repository_kustomize_path)"
 
       resources:
         - name: app
