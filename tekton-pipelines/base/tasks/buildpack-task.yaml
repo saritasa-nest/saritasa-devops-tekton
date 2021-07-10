@@ -92,38 +92,43 @@ spec:
         #!/usr/bin/env bash
         set -e
 
+        APP=$(resources.inputs.app.path)
+
         # python related
         # we should have a requirements.txt file in the build folder for our buildpack to work correctly
         # as a result we just copy it.
-        if [ -f app/manage.py ]; then
+        if [ -f $APPmanage.py ]; then
           case $(params.environment) in
 
             dev|develop|development)
-              [ -f app/requirements/dev.txt ]         && cp app/requirements/dev.txt app/requirements.txt
-              [ -f app/requirements/develop.txt ]     && cp app/requirements/develop.txt app/requirements.txt
-              [ -f app/requirements/development.txt ] && cp app/requirements/development.txt app/requirements.txt
+              [ -f $APP/requirements/dev.txt ]         && cp $APP/requirements/dev.txt $APP/requirements.txt
+              [ -f $APP/requirements/develop.txt ]     && cp $APP/requirements/develop.txt $APP/requirements.txt
+              [ -f $APP/requirements/development.txt ] && cp $APP/requirements/development.txt $APP/requirements.txt
               ;;
             staging)
-              [ -f app/requirements/staging.txt ]     && cp app/requirements/staging.txt app/requirements.txt
+              [ -f $APP/requirements/staging.txt ]     && cp $APP/requirements/staging.txt $APP/requirements.txt
               ;;
             prod|production)
-              [ -f app/requirements/prod.txt ]        && cp app/requirements/prod.txt app/requirements.txt
-              [ -f app/requirements/production.txt ]  && cp app/requirements/production.txt app/requirements.txt
+              [ -f $APP/requirements/prod.txt ]        && cp $APP/requirements/prod.txt $APP/requirements.txt
+              [ -f $APP/requirements/production.txt ]  && cp $APP/requirements/production.txt $APP/requirements.txt
               ;;
             *)
-              cp app/requirements/$(params.environment).txt app/requirements.txt
+              cp $APP/requirements/$(params.environment).txt $APP/requirements.txt
               ;;
           esac
 
-          [ -f app/requirements.txt ] && echo "Found requirements.txt" || exit 1
+          [ -f $APP/requirements.txt ] && echo "Found requirements.txt" || exit 1
         fi
 
     - name: nodejs
       image: node:14
       script: |
         #!/bin/bash
-        # nodejs related
-        if [ -f app/package.json ]; then
+        set -e
+
+        APP=$(resources.inputs.app.path)
+
+        if [ -f $APP/package.json ]; then
           cd app
           case $(params.environment) in
             dev|develop|development)
@@ -152,11 +157,13 @@ spec:
         #!/usr/bin/env bash
         set -e
 
+        APP=$(resources.inputs.app.path)
+
         # php related
         # Workaround to fix no PHP detection, when package.json presents
 
-        if [[ -f app/composer.json && -f app/package.json ]]; then
-          rm -f app/package.json
+        if [[ -f $APP/composer.json && -f $APP/package.json ]]; then
+          rm -f $APP/package.json
           ls -la app
         fi
 
