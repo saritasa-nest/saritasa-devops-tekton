@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:     
+  name: get-pipelinerun-name
+spec:
+  description: >-
+    Obtain the exact name of the pipelinerun
+
+  params:
+    - name: application
+    - name: tekton_namespace
+      description: Namespace in which we run tekton (ci by default)
+      default: "ci"
+  
+  results:
+    - name: pipelinerun_name
+      description: The name of the pipelinerun
+  
+
+  steps:
+    - name: get-pipelinerun-name
+      image: bitnami/kubectl:latest
+      script: |
+        set +x; 
+        pipelinerun_name=`kubectl -n $(params.tekton_namespace) get pipelinerun -l triggers.tekton.dev/trigger=$(params.application)-trigger --no-headers -o="custom-columns=NAME:.metadata.name, STATUS:.status.conditions[0].reason, COMPLETION:.status.completionTime"  | grep Running | sort -r -k3,3 | head -n 1 | awk '{print $1}'`
+        set -x; 
+        echo $pipelinerun_name | tee $(results.pipelinerun_name.path)

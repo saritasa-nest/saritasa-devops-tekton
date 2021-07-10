@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: buildpack
+  name: buildpack-frontend
 spec:
   description: >-
     The Buildpacks task builds source into a container image and pushes it to a AWS ECR registry,
@@ -86,38 +86,7 @@ spec:
       securityContext:
         privileged: true
 
-    - name: python
-      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
-      script: |
-        #!/usr/bin/env bash
-        set -e
-
-        # python related
-        # we should have a requirements.txt file in the build folder for our buildpack to work correctly
-        # as a result we just copy it.
-        if [ -f app/manage.py ]; then
-          case $(params.environment) in
-
-            dev|develop|development)
-              [ -f app/requirements/dev.txt ]         && cp app/requirements/dev.txt app/requirements.txt
-              [ -f app/requirements/develop.txt ]     && cp app/requirements/develop.txt app/requirements.txt
-              [ -f app/requirements/development.txt ] && cp app/requirements/development.txt app/requirements.txt
-              ;;
-            staging)
-              [ -f app/requirements/staging.txt ]     && cp app/requirements/staging.txt app/requirements.txt
-              ;;
-            prod|production)
-              [ -f app/requirements/prod.txt ]        && cp app/requirements/prod.txt app/requirements.txt
-              [ -f app/requirements/production.txt ]  && cp app/requirements/production.txt app/requirements.txt
-              ;;
-            *)
-              cp app/requirements/$(params.environment).txt app/requirements.txt
-              ;;
-          esac
-
-          [ -f app/requirements.txt ] && echo "Found requirements.txt" || exit 1
-        fi
-
+    
     - name: nodejs
       image: node:14
       script: |
@@ -125,40 +94,16 @@ spec:
         # nodejs related
         if [ -f app/package.json ]; then
           cd app
-          case $(params.environment) in
-            dev|develop|development)
-              yes | npm install --silent
-              npm run build:development || echo "unable to build  development"
-              rm -rf node_modules && echo "remove node_modules dir"
-              ;;
-            staging)
-              yes | npm install --silent
-              npm run build:staging || echo "unable to build  staging"
-                rm -rf node_modules && echo "remove node_modules dir"
-              ;;
-            prod|production)
-              yes | npm install --silent
-              npm run build:production || echo "unable to build  production"
-              rm -rf node_modules && echo "remove node_modules dir"
-              ;;
-          esac
+          yes | npm install --silent
+          npm run build:$(params.environment) || echo "unable to build $(params.environment)"
+          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*} $(params.source_subpath) 2>/dev/null
+          chown -R $(params.user_id):$(params.group_id) $(params.source_subpath)
+
+        else
+          echo "unable to find package.json" && exit 1;
         fi
       securityContext:
         privileged: true
-
-    - name: php
-      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
-      script: |
-        #!/usr/bin/env bash
-        set -e
-
-        # php related
-        # Workaround to fix no PHP detection, when package.json presents
-
-        if [[ -f app/composer.json && -f app/package.json ]]; then
-          rm -f app/package.json
-          ls -la app
-        fi
 
     # if you need to debug this step you can do:
     # k exec -ti `k --no-headers=true get pods -l tekton.dev/task=buildpack | awk '{print $1}'` -c step-create bash

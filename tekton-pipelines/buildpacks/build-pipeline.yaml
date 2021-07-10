@@ -9,6 +9,8 @@ spec:
 
   params:
     - name: application
+    - name: project
+      default: "" # set to empty default to accomodate currently running triggers
     - name: sha
     - name: head_commit
     - name: head_commit_message
@@ -25,12 +27,19 @@ spec:
     - name: docker_registry_repository
     - name: environment
     - name: source_subpath
+      default: ""
+    - name: kubernetes_repository_kustomize_path
+      default: ".kubernetes/manifests/dev"
+    - name: kubernetes_branch
+      default: main
 
   workspaces:
     - name: source
 
   resources:
     - name: app
+      type: git
+    - name: kubernetes-repo
       type: git
     - name: image
       type: image
@@ -71,16 +80,20 @@ spec:
       resources:
         inputs:
           - name: kubernetes-repo
-            resource: app
+            resource: kubernetes-repo
       params:
         - name: application
           value: "$(params.application)"
+        - name: project
+          value: "$(params.project)"
         - name: branch
           value: $(params.branch)
         - name: image
           value: "$(params.docker_registry_repository):$(params.environment)-$(params.sha)"
         - name: kustomize_overlay_path
-          value: ".kubernetes/manifests/"
+          value: "$(params.kubernetes_repository_kustomize_path)"
+        - name: kubernetes_branch
+          value: "$(params.kubernetes_branch)"
         - name: environment
           value: "$(params.environment)"
       runAfter:
@@ -90,7 +103,7 @@ spec:
       taskRef:
         name: argocd-deploy
       params:
-        - name : argocd_application_name
+        - name : application
           value: "$(params.application)"
         - name: environment
           value: "$(params.environment)"
