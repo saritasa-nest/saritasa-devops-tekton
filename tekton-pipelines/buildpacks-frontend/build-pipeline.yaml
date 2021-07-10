@@ -1,10 +1,10 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: kaniko-build-pipeline
+  name: buildpack-frontend-build-pipeline
 spec:
   description: >-
-    Pipeline will only build the image utilizing dockerfile using kaniko and then send notification via slack.
+    Pipeline will only build the image utilizing buildpacks and then send notification via slack.
     The deployment is done via argocd
 
   params:
@@ -21,11 +21,13 @@ spec:
     - name: repository_url
     - name: repository_ssh_url
     - name: branch
+    - name: buildpack_builder_image
+    - name: buildpack_runner_image
     - name: docker_registry
     - name: docker_registry_repository
     - name: environment
-    - name: docker_file
-    - name: docker_context
+    - name: source_subpath
+      default: ""
     - name: kubernetes_repository_kustomize_path
       default: ".kubernetes/manifests/dev"
     - name: kubernetes_branch
@@ -41,11 +43,11 @@ spec:
       type: git
     - name: image
       type: image
-  
+
   tasks:
-    - name: kaniko
+    - name: buildpack-frontend
       taskRef:
-        name: kaniko
+        name: buildpack-frontend
       resources:
           inputs:
             - name: app
@@ -56,14 +58,18 @@ spec:
       params:
         - name: application
           value: "$(params.application)"
+        - name: builder_image
+          value: "$(params.buildpack_builder_image)"
+        - name: run_image
+          value: "$(params.buildpack_runner_image)"
         - name: docker_registry
           value: $(params.docker_registry)
+        - name: cache
+          value: $(params.application)-buildpacks-cache
         - name: environment
           value: "$(params.environment)"
-        - name: docker_file
-          value: "$(params.docker_file)"
-        - name: docker_context
-          value: "$(params.docker_context)"
+        - name: source_subpath
+          value: "$(params.source_subpath)"
       workspaces:
         - name: source
           workspace: source
@@ -90,8 +96,8 @@ spec:
           value: "$(params.kubernetes_branch)"
         - name: environment
           value: "$(params.environment)"
-      runAfter: 
-        - kaniko
+      runAfter:
+        - buildpack-frontend
 
     - name: argocd-deploy
       taskRef:

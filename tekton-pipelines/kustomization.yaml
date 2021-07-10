@@ -6,4 +6,5 @@ namespace: ci
 resources:
   - base
   - buildpacks
+  - buildpacks-frontend
   - kaniko

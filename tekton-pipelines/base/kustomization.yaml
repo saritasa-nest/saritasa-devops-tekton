@@ -3,10 +3,18 @@ kind: Kustomization
 
 namespace: ci
 
+#
+# Kustomize will add the namespace and labels to all files being kustomized
+#
+commonLabels:
+  pipeline: tekton
+  deploy: argocd
+
 resources:
   - tasks/buildpack-task.yaml
   - tasks/argocd-deploy-task.yaml
   - tasks/kustomize-task.yaml
   - tasks/slack-notification-task.yaml  
   - tasks/kaniko-task.yaml
+  - tasks/get-pipelinerun-name.yaml
   - triggers/github-trigger-binding.yaml

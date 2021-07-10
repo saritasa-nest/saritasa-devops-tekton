@@ -4,7 +4,7 @@
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
-  name: kaniko-build-pipeline-trigger-template
+  name: frontend-buildpacks-build-pipeline-trigger-template
 spec:
   params:
     - name: application
@@ -22,8 +22,10 @@ spec:
     - name: branch
     - name: docker_registry
     - name: docker_registry_repository
-    - name: docker_file
-    - name: docker_context
+    - name: buildpack_builder_image
+    - name: buildpack_runner_image
+    - name: source_subpath
+      default: ""
     - name: kubernetes_repository_ssh_url
     - name: kubernetes_repository_kustomize_path
     - name: kubernetes_branch
@@ -32,14 +34,14 @@ spec:
   - kind: PipelineRun
     apiVersion: tekton.dev/v1beta1
     metadata:
-      generateName: $(tt.params.application)-kaniko-build-pipeline-run-
+      generateName: $(tt.params.application)-build-pipeline-run-
     spec:
       serviceAccountName: $(tt.params.application)-build-pipeline-sa
       serviceAccountNames:
         - taskName: kustomize
           serviceAccountName: $(tt.params.application)-build-pipeline-kustomize-sa
       pipelineRef:
-        name: kaniko-build-pipeline
+        name: frontend-buildpack-build-pipeline
       params:
         - name: "application"
           value: "$(tt.params.application)"
@@ -71,10 +73,12 @@ spec:
           value: "$(tt.params.docker_registry)"
         - name: docker_registry_repository
           value: "$(tt.params.docker_registry_repository)"
-        - name: docker_file
-          value: "$(tt.params.docker_file)"
-        - name: docker_context
-          value: "$(tt.params.docker_context)"
+        - name: buildpack_builder_image
+          value: "$(tt.params.buildpack_builder_image)"
+        - name: buildpack_runner_image
+          value: "$(tt.params.buildpack_runner_image)"
+        - name: source_subpath
+          value: "$(tt.params.source_subpath)"
         - name: kubernetes_repository_kustomize_path    
           value: "$(tt.params.kubernetes_repository_kustomize_path)"
         - name: kubernetes_branch    
@@ -110,5 +114,9 @@ spec:
         persistentVolumeClaim:
           claimName: $(tt.params.application)-workspace-pvc
       podTemplate:
+        volumes:
+        - name: $(tt.params.application)-buildpacks-cache
+          persistentVolumeClaim:
+            claimName: $(tt.params.application)-buildpacks-cache-pvc
         nodeSelector:
           ci: "true"
