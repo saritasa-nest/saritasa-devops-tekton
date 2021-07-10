@@ -130,23 +130,9 @@ spec:
 
         if [ -f $APP/package.json ]; then
           cd $APP
-          case $(params.environment) in
-            dev|develop|development)
-              yes | npm install --silent
-              npm run build:development || echo "unable to build  development"
-              rm -rf node_modules && echo "remove node_modules dir"
-              ;;
-            staging)
-              yes | npm install --silent
-              npm run build:staging || echo "unable to build  staging"
-                rm -rf node_modules && echo "remove node_modules dir"
-              ;;
-            prod|production)
-              yes | npm install --silent
-              npm run build:production || echo "unable to build  production"
-              rm -rf node_modules && echo "remove node_modules dir"
-              ;;
-          esac
+          yes | npm install --silent
+          npm run build:$(params.environment) || echo "unable to build  $(params.environment)"
+          rm -rf node_modules && echo "remove node_modules dir"
         fi
       securityContext:
         privileged: true
