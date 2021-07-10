@@ -22,10 +22,6 @@ spec:
     - name: pipelinerun_name
       default: "reserved"
 
-  results:
-    - name: pipelinerun_name
-      description: The name of the pipelinerun
-
   stepTemplate:
     envFrom:
       - configMapRef:
@@ -37,32 +33,21 @@ spec:
         valueFrom:
           fieldRef:
             fieldPath: metadata.name
+    volumeMounts:
+      - name: podinfo
+        mountPath: /etc/podinfo
 
   steps:
-    
-    - name: get-pipelinerun-name
-      image: bitnami/kubectl:latest
-      script: |
-        set +x; 
-        pipelinerun_name=`kubectl -n ci get pipelinerun -l triggers.tekton.dev/trigger=$(params.application)-trigger --no-headers -o="custom-columns=NAME:.metadata.name, STATUS:.status.conditions[0].reason, COMPLETION:.status.completionTime"  | grep Running | sort -r -k3,3 | head -n 1 | awk '{print $1}'`
-        set -x; 
-        echo $pipelinerun_name | tee $(results.pipelinerun_name.path)
-
     - name: notification
       image: cloudposse/slack-notifier:sha-d5f4cf0
       script: |
         #!/bin/sh
-        
-        pipelinerun_name=`cat $(results.pipelinerun_name.path)`
-
-        # let's obtain a random pipelinerun token from the pod name
-        # which looks like this
-        # build-pipeline-run-6hqdt
-        # so we can then build the proper URL to the tekton dashboard
-        # with results of that Pipeline
-        pipeline_run_name=${POD_NAME%-*}
+        # tekton injects these labels into pods
+        # https://tekton.dev/docs/pipelines/labels/
+        # so we can easily extract items
+        # podinfo is mounted in TriggerTemplate
+        pipelinerun_name=$(awk -F= '/tekton.dev\/pipelineRun/ {gsub(/"/, "", $2);print $2}' /etc/podinfo/labels)
         status="`echo $(params.status) | tr '[:upper:]' '[:lower:]'`"
-
         echo "result: $status"
 
         if [ "$status" = "succeeded" ]; then

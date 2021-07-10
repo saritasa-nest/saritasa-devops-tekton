@@ -118,5 +118,14 @@ spec:
         - name: $(tt.params.application)-buildpacks-cache
           persistentVolumeClaim:
             claimName: $(tt.params.application)-buildpacks-cache-pvc
+        - name: podinfo
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+              - path: "annotations"
+                fieldRef:
+                  fieldPath: metadata.annotations
         nodeSelector:
           ci: "true"
