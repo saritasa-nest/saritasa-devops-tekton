@@ -33,8 +33,9 @@ spec:
     - name: prepare
       image: alpine/git
       script: |
-        git config --global user.email "$DEVOPS_GROUP_EMAIL"
-        git config --global user.name "tekton-kustomize"
+        cd $(inputs.resources.kubernetes-repo.path)
+        git config user.email "$DEVOPS_GROUP_EMAIL"
+        git config user.name "tekton-kustomize"
 
     - name: update
       image: k8s.gcr.io/kustomize/kustomize:v3.8.7
