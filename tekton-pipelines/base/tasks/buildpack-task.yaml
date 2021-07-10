@@ -164,7 +164,7 @@ spec:
 
         if [[ -f $APP/composer.json && -f $APP/package.json ]]; then
           rm -f $APP/package.json
-          ls -la app
+          ls -la $APP
         fi
 
     # if you need to debug this step you can do:
