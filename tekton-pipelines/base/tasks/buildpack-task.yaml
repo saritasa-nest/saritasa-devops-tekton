@@ -129,7 +129,7 @@ spec:
         APP=$(resources.inputs.app.path)
 
         if [ -f $APP/package.json ]; then
-          cd app
+          cd $APP
           case $(params.environment) in
             dev|develop|development)
               yes | npm install --silent
