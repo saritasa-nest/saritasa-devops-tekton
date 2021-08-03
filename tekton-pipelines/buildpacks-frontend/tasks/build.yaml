@@ -91,9 +91,12 @@ spec:
       image: node:14
       script: |
         #!/bin/bash
+
+        APP=$(resources.inputs.app.path)
+
         # nodejs related
-        if [ -f app/package.json ]; then
-          cd app
+        if [ -f $APP/package.json ]; then
+          cd $APP
           yes | npm install --silent
           npm run build:$(params.environment) || echo "unable to build $(params.environment)"
           cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*} $(params.source_subpath) 2>/dev/null
@@ -113,11 +116,11 @@ spec:
       script: |
         #!/bin/bash
 
-        aws ecr get-login-password --region $AWS_REGION | docker login -u AWS --password-stdin $(params.docker_registry)
+        docker login $(params.docker_registry) --username "$AZURE_SP_APP_ID" --password "$AZURE_SP_PASSWORD"
 
         # build image utilizing backpack
         /cnb/lifecycle/creator \
-          -app=app/$(params.source_subpath) \
+          -app=/workspace/app/$(params.source_subpath) \
           -project-metadata=/workspace/app/project.toml \
           -cache-dir=/cache \
           -layers=/layers \
@@ -132,6 +135,17 @@ spec:
           -run-image=$(params.run_image) \
           $(resources.outputs.image.url)
 
+      env:
+        - name: AZURE_SP_APP_ID
+          valueFrom:
+            secretKeyRef:
+              name: aks-pod-sp-secret
+              key: app-id
+        - name: AZURE_SP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: aks-pod-sp-secret
+              key: password
       volumeMounts:
         - name: layers-dir
           mountPath: /layers
