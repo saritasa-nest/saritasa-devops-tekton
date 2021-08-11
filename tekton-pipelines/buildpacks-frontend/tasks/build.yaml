@@ -136,6 +136,19 @@ spec:
           $(resources.outputs.image.url)
 
       env:
+        # the `AZURE_SP_APP_ID` and `AZURE_SP_PASSWORD` values are `app-id` and
+        # `password` for ServicePrincipal, which is allowed to push to Azure
+        # Docker Registry.
+        #
+        # It's values can be found in cpca-kubernetes-azure repo
+        # https://github.com/saritasa-nest/cpca-kubernetes-azure in
+        # `/prod/secrets/aks-pod-sp-secret.yaml` file (keep in mind that
+        # `secrets` folder is encrypted with `git-crypt`).
+        #
+        # As far as saritasa has an Azure account in `cpca` client's infra with
+        # restricted permissions, this data can't be found through Azure Portal
+        # or Azure CLI. All related to this ServicePrincipal info can be found
+        # here: https://keys.saritasa.com/cred/detail/12320/ (`cpca-prod-aks-pod-sp`)
         - name: AZURE_SP_APP_ID
           valueFrom:
             secretKeyRef:
