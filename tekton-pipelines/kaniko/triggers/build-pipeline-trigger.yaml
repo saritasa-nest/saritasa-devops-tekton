@@ -111,9 +111,6 @@ spec:
           claimName: $(tt.params.application)-workspace-pvc
       podTemplate:
         volumes:
-        - name: $(tt.params.application)-buildpacks-cache
-          persistentVolumeClaim:
-            claimName: $(tt.params.application)-buildpacks-cache-pvc
         - name: podinfo
           downwardAPI:
             items:
