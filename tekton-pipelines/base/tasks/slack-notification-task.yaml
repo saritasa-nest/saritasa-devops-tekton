@@ -9,6 +9,7 @@ spec:
 
   params:
     - name: application
+    - name: sha
     - name: head_commit
     - name: head_commit_message
     - name: pusher_name
@@ -65,6 +66,8 @@ spec:
         argo_app_url=$(echo $argo_app_url | sed 's/\/\//\//g')
         argo_app_url="https://argo_app_url"
 
+        branch=$(echo $(params.branch) | sed -r 's/\brefs\/\bheads\///g')
+
         slack-notifier \
         -user_name "Tekton" \
         -icon_emoji ":white_check_mark:" \
@@ -75,20 +78,11 @@ spec:
         -text "$text_status" \
         -thumb_url "$thumb_url" \
         -field1_title "Open Application" \
-        -field1_value "<$APPLICATION_URL|$(params.application)>" \
-        -field1_short true \
-        -field2_title "Environment" \
-        -field2_value "$(params.environment)" \
-        -field2_short true \
-        -field3_title "Branch:Rev" \
-        -field3_value "$(params.branch):$(params.head_commit)" \
-        -field3_short false \
-        -field4_title "Manage" \
-        -field4_value "<$(params.repository_url)|Github Repository> | <$(params.repository_url)/issues|Github Issues> | <$JIRA_PROJECT_URL|Jira>" \
-        -field4_short false \
-        -field5_title "CI" \
-        -field5_value "$TEKTON_URL/$pipelinerun_name" \
-        -field5_short false \
-        -field6_title "CD" \
-        -field6_value "<$argo_app_url|Manage app in argocd>" \
-        -field6_short false
+        -field1_value "$(params.environment): <$APPLICATION_URL|$APPLICATION_URL>" \
+        -field1_short false \
+        -field2_title "Branch:Rev" \
+        -field2_value "<$(params.repository_url)/commit/$(params.sha)|$branch:$commit>" \
+        -field2_short false \
+        -field3_title "Manage" \
+        -field3_value "<$(params.repository_url)|Github Repository> | <$(params.repository_url)/issues|Github Issues> | <$JIRA_PROJECT_URL|Jira> | <$TEKTON_URL/$pipelinerun_name|CI> | <$argo_app_url|CD> " \
+        -field3_short false
