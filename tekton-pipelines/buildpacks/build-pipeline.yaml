@@ -117,6 +117,8 @@ spec:
       params:
         - name: application
           value: "$(params.application)"
+        - name: sha
+          value: "$(params.sha)"
         - name: head_commit
           value: "$(params.head_commit)"
         - name: head_commit_message
