@@ -41,7 +41,7 @@ spec:
         - taskName: kustomize
           serviceAccountName: $(tt.params.application)-build-pipeline-kustomize-sa
       pipelineRef:
-        name: frontend-buildpack-build-pipeline
+        name: buildpack-frontent-build-pipeline
       params:
         - name: "application"
           value: "$(tt.params.application)"
