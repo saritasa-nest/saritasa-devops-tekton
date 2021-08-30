@@ -85,5 +85,5 @@ spec:
         -field3_value "<$(params.repository_url)/commit/$(params.sha)|$(params.sha)>" \
         -field3_short true \
         -field4_title "Manage" \
-        -field4_value "<$(params.repository_url)|Github Repository> | <$(params.repository_url)/issues|Github Issues> | <$JIRA_PROJECT_URL|Jira> | <$TEKTON_URL/$pipelinerun_name|CI> | <$argo_app_url|CD> " \
+        -field4_value "<$(params.repository_url)|Github> | <$(params.repository_url)/issues|Issues> | <$JIRA_PROJECT_URL|Jira> | <$TEKTON_URL/$pipelinerun_name|CI> | <$argo_app_url|CD> " \
         -field4_short false
