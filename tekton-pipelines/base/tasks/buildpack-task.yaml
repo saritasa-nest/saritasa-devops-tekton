@@ -54,7 +54,6 @@ spec:
       description: "AWS Private ecr registry address"
     - name: environment
 
-
   stepTemplate:
     env:
       - name: CNB_PLATFORM_API
@@ -83,6 +82,93 @@ spec:
           mountPath: /layers
         - name: $(params.cache)
           mountPath: /cache
+      securityContext:
+        privileged: true
+    
+    # I dislike this hack 
+    # https://github.com/tektoncd/catalog/blob/main/task/buildpacks/0.3/buildpacks.yaml#L68-L113
+    # but we should use it until this is resolved:
+    # - https://github.com/buildpacks/tekton-integration/issues/33
+    # - https://github.com/buildpacks/tekton-integration/issues/32
+    # TODO: check in the future and adjust when project.toml is clear to be supported.
+  
+    - name: set-env-vars
+      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
+      script: |
+       #!/usr/bin/env bash
+       set -e
+
+       ENV_DIR=/platform/env
+       ENV_VARS=(`env`)
+       
+       function save_var() {
+         key=`echo $1 | awk -F= '{print $1}'`
+         val=`echo $1 | awk -F= '{print $2}'`
+         echo "--> Exporting env var $1"
+         echo -n $val > $ENV_DIR/$key 
+       }
+       
+       echo "--> Creating 'env' directory: $ENV_DIR"
+       mkdir -p $ENV_DIR
+       
+       for VAR in "${ENV_VARS[@]}"
+       do
+          # process google env vars as defined in here
+          # https://github.com/GoogleCloudPlatform/buildpacks
+          # https://github.com/GoogleCloudPlatform/buildpacks#language-idiomatic-configuration-options
+          # FIXME: Some of the buildpacks rely on `PATH` env variable, but it overlaps with in-bash PATH env var
+          # so implementation for PATH should be different, probably via BUILDPACK_PATH value that we store in build-pipeline-config 
+          # and then if that value is found - store it in /platform/env folder as a workaround. It's too bad project.toml is not working
+          # as intented.
+          # 
+          case $VAR in
+             # google buildpacks
+             # ----------------------------
+             "GOOGLE_"*|"GO"*|"MAVEN_"*|"GRADDLE_"*|"NPM_"*|"COMPOSER_"*|"PIP_"*|"BUNDLE_"*)
+               save_var $VAR
+             ;;
+             
+             # paketo buildpacks
+             # ----------------------------
+             "BP_"*)
+               save_var $VAR
+             ;;
+
+             # paketo dotnet buildpacks
+             # ----------------------------
+             "DOTNET"*|"RUNTIME_VERSION"*|"SDK_LOCATION"*)
+               save_var $VAR
+             ;;
+             
+             # paketo go buildpacks
+             # ----------------------------
+             "DEPCACHEDIR"*)
+               save_var $VAR
+             ;;
+             
+             # paketo nodejs buildpacks
+             # ----------------------------
+             "NODE_"*|"MEMORY_"*)
+               save_var $VAR
+             ;;
+       
+             # paketo php buildpacks
+             # ----------------------------
+             "APP_"*|"SERVER_"*|"MIBDIRS"*|"PHP_"*)
+               save_var $VAR
+             ;;
+             # paketo ruby buildpacks
+             # ----------------------------
+             "GEM_"*|"BUNDLE_"*)
+               save_var $VAR
+             ;;   
+          esac
+       done
+      volumeMounts:
+        - name: layers-dir
+          mountPath: /layers
+        - name: $(params.platform_dir)
+          mountPath: /platform
       securityContext:
         privileged: true
 
