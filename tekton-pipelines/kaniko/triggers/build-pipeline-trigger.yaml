@@ -122,3 +122,8 @@ spec:
                   fieldPath: metadata.annotations
         nodeSelector:
           ci: "true"
+        tolerations:
+          - key: "ci"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"

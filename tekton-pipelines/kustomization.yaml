@@ -7,4 +7,6 @@ resources:
   - base
   - buildpacks
   - buildpacks-frontend
+  - buildpacks-dotnet
   - kaniko
+  - wordpress

@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: buildpack-frontend
+  name: buildpack-dotnet
 spec:
   description: >-
     The Buildpacks task builds source into a container image and pushes it to a AWS ECR registry,
@@ -87,23 +87,27 @@ spec:
         privileged: true
 
     
-    - name: nodejs
-      image: node:14
+    - name: fetch-tags
+      workingDir: $(resources.inputs.app.path)
+      image: jnewland/git-and-stuff
       script: |
-        #!/bin/bash
-        # nodejs related
-        if [ -f $(resources.inputs.app.path)/package.json ]; then
-          cd $(resources.inputs.app.path)
-          yes | npm install --silent
-          npm run build:$(params.environment) || echo "unable to build $(params.environment)"
-          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*,httpd.conf,.http.d,httpd.d} $(params.source_subpath) 2>/dev/null
-          chown -R $(params.user_id):$(params.group_id) $(params.source_subpath)
-
-        else
-          echo "unable to find package.json" && exit 1;
-        fi
+        cp -rf ~/.ssh/ /root/
+        git fetch --tags
+        
       securityContext:
         privileged: true
+        runAsUser: 0
+
+    - name: getversion
+      workingDir: $(resources.inputs.app.path)
+      image: gittools/gitversion:5.6.10-alpine.3.12-x64-3.1
+      script: |
+        git tag
+        /tools/dotnet-gitversion /updateprojectfiles
+        git status
+        chown -R "$(params.user_id):$(params.group_id)" "$(workspaces.source.path)"
+        chown -R "$(params.user_id):$(params.group_id)" "$(resources.inputs.app.path)"
+        echo "DONE"
 
     # if you need to debug this step you can do:
     # k exec -ti `k --no-headers=true get pods -l tekton.dev/task=buildpack | awk '{print $1}'` -c step-create bash

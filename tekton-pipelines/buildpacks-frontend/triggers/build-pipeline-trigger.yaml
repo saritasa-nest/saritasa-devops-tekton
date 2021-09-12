@@ -4,7 +4,7 @@
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
-  name: frontend-buildpacks-build-pipeline-trigger-template
+  name: buildpacks-frontend-build-pipeline-trigger-template
 spec:
   params:
     - name: application
@@ -129,3 +129,8 @@ spec:
                   fieldPath: metadata.annotations
         nodeSelector:
           ci: "true"
+        tolerations:
+          - key: "ci"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
