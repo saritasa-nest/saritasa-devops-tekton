@@ -4,7 +4,7 @@
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
-  name: buildpacks-frontend-build-pipeline-trigger-template
+  name: buildpack-frontend-build-pipeline-trigger-template
 spec:
   params:
     - name: application
