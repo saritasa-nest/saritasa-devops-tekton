@@ -91,7 +91,6 @@ spec:
       workingDir: $(resources.inputs.app.path)
       image: jnewland/git-and-stuff
       script: |
-        cp -rf ~/.ssh/ /root/
         git fetch --tags
         
       securityContext:
