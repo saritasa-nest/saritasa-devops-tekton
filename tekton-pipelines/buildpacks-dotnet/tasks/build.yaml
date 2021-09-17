@@ -21,6 +21,8 @@ spec:
   params:
     - name: application
       description: The name of the application being built
+    - name: branch
+      description: The git branch we build
     - name: builder_image
       description: The image on which builds will run (must include lifecycle and compatible buildpacks).
     - name: cache
@@ -102,6 +104,20 @@ spec:
       image: gittools/gitversion:5.6.10-alpine.3.12-x64-3.1
       script: |
         git tag
+        # so we are making a hack, that if we try to merge hotfix branch into main we should 
+        [ -e GitVersion.yml ] && /tools/dotnet-gitversion | grep hotfix 1>/dev/null && (echo "hotfix"; rm -rf GitVersion.yml; cp GitVersion-hotfix.yml GitVersion.yml)
+
+
+        branches="^refs/heads/(main$|release//*)"
+
+        if [[ $(params.branch) =~ $branches ]];
+        then
+          local_tags=$(git tag --points-at HEAD)
+          echo "remove local head tags"
+          echo $local_tags
+          git tag -d $local_tags
+        fi
+        
         /tools/dotnet-gitversion /updateprojectfiles
         git status
         chown -R "$(params.user_id):$(params.group_id)" "$(workspaces.source.path)"
