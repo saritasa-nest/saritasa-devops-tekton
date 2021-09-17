@@ -54,6 +54,8 @@ spec:
         # branch=`echo $(params.branch)| awk -F\/ '$0=$3'`
         # git checkout $branch
         git commit -am "feat: $(params.environment) argocd deployment $(params.kustomize_overlay_path), new image: $(params.image)"
-        mkdir /root/.ssh && cp -r $HOME/.ssh/* /root/.ssh
+        # mkdir /root/.ssh && cp -r $HOME/.ssh/* /root/.ssh
         # git push
         git push origin HEAD:$(params.kubernetes_branch)
+        
+

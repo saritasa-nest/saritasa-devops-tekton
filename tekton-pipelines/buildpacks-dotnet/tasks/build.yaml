@@ -104,19 +104,28 @@ spec:
       image: gittools/gitversion:5.6.10-alpine.3.12-x64-3.1
       script: |
         #!/usr/bin/env ash
-        git tag
+        
         # so we are making a hack, that if we try to merge hotfix branch into main we should 
-        [ -e GitVersion.yml ] && /tools/dotnet-gitversion | grep hotfix 1>/dev/null && (echo "hotfix"; rm -rf GitVersion.yml; cp GitVersion-hotfix.yml GitVersion.yml)
+        [ -e GitVersion-hotfix.yml ] && /tools/dotnet-gitversion | grep hotfix 1>/dev/null && (echo "hotfix"; rm -rf GitVersion.yml; cp GitVersion-hotfix.yml GitVersion.yml)
+
+        BRANCH=$(params.branch)
 
         # since this is a busybox we can't use bash regexp here
-        if echo $(params.branch) | grep -E '^refs/heads/(main|release/[0-9.]+)$' > /dev/null;
+        if echo $BRANCH | grep -E '^refs/heads/(main|release/[0-9.]+)$' > /dev/null;
         then
           local_tags=$(git tag --points-at HEAD)
           echo "remove local head tags"
           echo $local_tags
           git tag -d $local_tags
         fi
+
+        pure_branch=`echo $BRANCH | sed 's/refs\/heads\///'`
+        echo "PURE BRANCH:" $pure_branch
         
+        # make sure we're not in detached head status
+        git symbolic-ref -q HEAD || git checkout $pure_branch
+        git branch
+
         /tools/dotnet-gitversion /updateprojectfiles
         git status
         chown -R "$(params.user_id):$(params.group_id)" "$(workspaces.source.path)"
