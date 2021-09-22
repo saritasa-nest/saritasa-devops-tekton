@@ -91,79 +91,57 @@ spec:
     # - https://github.com/buildpacks/tekton-integration/issues/33
     # - https://github.com/buildpacks/tekton-integration/issues/32
     # TODO: check in the future and adjust when project.toml is clear to be supported.
-  
     - name: set-env-vars
-      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
+      image: saritasallc/python3:0.1@sha256:cb4be451c918cbd924e5380b1027afa66e232c8524e75afd4c2c771df213210e
       script: |
-       #!/usr/bin/env bash
-       set -e
+        #!/usr/bin/env python3
+        import re, toml, os, sys
 
-       ENV_DIR=/platform/env
-       ENV_VARS=(`env`)
-       
-       function save_var() {
-         key=`echo $1 | awk -F= '{print $1}'`
-         val=`echo $1 | awk -F= '{print $2}'`
-         echo "--> Exporting env var $1"
-         echo -n $val > $ENV_DIR/$key 
-       }
-       
-       echo "--> Creating 'env' directory: $ENV_DIR"
-       mkdir -p $ENV_DIR
-       
-       for VAR in "${ENV_VARS[@]}"
-       do
-          # process google env vars as defined in here
-          # https://github.com/GoogleCloudPlatform/buildpacks
-          # https://github.com/GoogleCloudPlatform/buildpacks#language-idiomatic-configuration-options
-          # FIXME: Some of the buildpacks rely on `PATH` env variable, but it overlaps with in-bash PATH env var
-          # so implementation for PATH should be different, probably via BUILDPACK_PATH value that we store in build-pipeline-config 
-          # and then if that value is found - store it in /platform/env folder as a workaround. It's too bad project.toml is not working
-          # as intented.
-          # 
-          case $VAR in
-             # google buildpacks
-             # ----------------------------
-             "GOOGLE_"*|"GO"*|"MAVEN_"*|"GRADDLE_"*|"NPM_"*|"COMPOSER_"*|"PIP_"*|"BUNDLE_"*)
-               save_var $VAR
-             ;;
-             
-             # paketo buildpacks
-             # ----------------------------
-             "BP_"*)
-               save_var $VAR
-             ;;
+        source_path = "$(resources.inputs.app.path)/project.toml"
+        env_dir = "/platform/env"
+        vars_prefixes = [
+          # google buildpacks
+          "GOOGLE_", "GO", "MAVEN_", "NPM_", "COMPOSER_", "PIP_", "BUNDLE_",
+          # paketo buildpacks
+          "BP_",
+          # paketo dotnet buildpacks
+          "DOTNET", "RUNTIME_VERSION", "SDK_LOCATION",
+          # paketo go buildpacks
+          "DEPCACHEDIR",
+          # paketo nodejs buildpacks
+          "NODE_", "MEMORY_",
+          # paketo php buildpacks
+          "APP_", "SERVER_", "MIBDIRS", "PHP_",
+          # paketo ruby buildpacks
+          "GEM_", "BUNDLE_"
+        ]
 
-             # paketo dotnet buildpacks
-             # ----------------------------
-             "DOTNET"*|"RUNTIME_VERSION"*|"SDK_LOCATION"*)
-               save_var $VAR
-             ;;
-             
-             # paketo go buildpacks
-             # ----------------------------
-             "DEPCACHEDIR"*)
-               save_var $VAR
-             ;;
-             
-             # paketo nodejs buildpacks
-             # ----------------------------
-             "NODE_"*|"MEMORY_"*)
-               save_var $VAR
-             ;;
-       
-             # paketo php buildpacks
-             # ----------------------------
-             "APP_"*|"SERVER_"*|"MIBDIRS"*|"PHP_"*)
-               save_var $VAR
-             ;;
-             # paketo ruby buildpacks
-             # ----------------------------
-             "GEM_"*|"BUNDLE_"*)
-               save_var $VAR
-             ;;   
-          esac
-       done
+        try:
+          with open(source_path, "r") as f:
+            parsed = toml.load(f)
+        except FileNotFoundError:
+          quit()
+        except Exception as e:
+          raise Exception("Toml file couldn't be parsed\nTraceback: {e}")
+
+        env_vars = parsed.get("build", {}).get("env", [])
+        env_vars = {item["name"]: item["value"] for item in env_vars}
+
+        # create directory if not exists
+        if env_vars and not os.path.exists(env_dir):
+            os.makedirs(env_dir)
+
+        # create env variables files
+        regex = f"^({'|'.join(vars_prefixes)})"
+        for name, value in env_vars.items():
+          if re.match(regex, name):
+            with open(f"{env_dir}/{name}", "w") as f:
+              f.write(value)
+              print(
+                f"Created `{env_dir}/{name}` var file with `{value}` value",
+                file=sys.stdout
+              )
+
       volumeMounts:
         - name: layers-dir
           mountPath: /layers

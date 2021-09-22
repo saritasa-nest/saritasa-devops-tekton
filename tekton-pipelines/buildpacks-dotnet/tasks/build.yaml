@@ -123,6 +123,71 @@ spec:
         chown -R "$(params.user_id):$(params.group_id)" "$(resources.inputs.app.path)"
         echo "DONE"
 
+    # I dislike this hack
+    # https://github.com/tektoncd/catalog/blob/main/task/buildpacks/0.3/buildpacks.yaml#L68-L113
+    # but we should use it until this is resolved:
+    # - https://github.com/buildpacks/tekton-integration/issues/33
+    # - https://github.com/buildpacks/tekton-integration/issues/32
+    # TODO: check in the future and adjust when project.toml is clear to be supported.
+    - name: set-env-vars
+      image: saritasallc/python3:0.1@sha256:cb4be451c918cbd924e5380b1027afa66e232c8524e75afd4c2c771df213210e
+      script: |
+        #!/usr/bin/env python3
+        import re, toml, os, sys
+
+        source_path = "$(resources.inputs.app.path)/project.toml"
+        env_dir = "/platform/env"
+        vars_prefixes = [
+          # google buildpacks
+          "GOOGLE_", "GO", "MAVEN_", "NPM_", "COMPOSER_", "PIP_", "BUNDLE_",
+          # paketo buildpacks
+          "BP_",
+          # paketo dotnet buildpacks
+          "DOTNET", "RUNTIME_VERSION", "SDK_LOCATION",
+          # paketo go buildpacks
+          "DEPCACHEDIR",
+          # paketo nodejs buildpacks
+          "NODE_", "MEMORY_",
+          # paketo php buildpacks
+          "APP_", "SERVER_", "MIBDIRS", "PHP_",
+          # paketo ruby buildpacks
+          "GEM_", "BUNDLE_"
+        ]
+
+        try:
+          with open(source_path, "r") as f:
+            parsed = toml.load(f)
+        except FileNotFoundError:
+          quit()
+        except Exception as e:
+          raise Exception("Toml file couldn't be parsed\nTraceback: {e}")
+
+        env_vars = parsed.get("build", {}).get("env", [])
+        env_vars = {item["name"]: item["value"] for item in env_vars}
+
+        # create directory if not exists
+        if env_vars and not os.path.exists(env_dir):
+            os.makedirs(env_dir)
+
+        # create env variables files
+        regex = f"^({'|'.join(vars_prefixes)})"
+        for name, value in env_vars.items():
+          if re.match(regex, name):
+            with open(f"{env_dir}/{name}", "w") as f:
+              f.write(value)
+              print(
+                f"Created `{env_dir}/{name}` var file with `{value}` value",
+                file=sys.stdout
+              )
+
+      volumeMounts:
+        - name: layers-dir
+          mountPath: /layers
+        - name: $(params.platform_dir)
+          mountPath: /platform
+      securityContext:
+        privileged: true
+
     # if you need to debug this step you can do:
     # k exec -ti `k --no-headers=true get pods -l tekton.dev/task=buildpack | awk '{print $1}'` -c step-create bash
     - name: build
