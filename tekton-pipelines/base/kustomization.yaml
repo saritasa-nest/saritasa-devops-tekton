@@ -11,6 +11,7 @@ commonLabels:
   deploy: argocd
 
 resources:
+  - tasks/set-env-vars-task.yaml
   - tasks/buildpack-task.yaml
   - tasks/argocd-deploy-task.yaml
   - tasks/kustomize-task.yaml
