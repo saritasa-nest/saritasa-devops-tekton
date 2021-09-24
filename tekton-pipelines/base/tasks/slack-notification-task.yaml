@@ -7,6 +7,9 @@ spec:
     Send slack notification with various information about pipeline progress/result.
     You can see my question about dealing with task status here: https://github.com/tektoncd/pipeline/issues/3762
 
+  workspaces:
+    - name: source
+
   params:
     - name: application
     - name: sha
@@ -28,7 +31,10 @@ spec:
       - configMapRef:
           name: $(params.application)-build-pipeline-config
       - secretRef:
-          name: $(params.application)-slack-secret  # used for webhook URL
+          name: $(params.application)-slack-secret  # used for webhook URL, channel_id
+      - secretRef:
+          name: slack-api-token-secret  # used for slack api token (common for all projects)
+
     env:
       - name: POD_NAME
         valueFrom:
@@ -39,8 +45,51 @@ spec:
         mountPath: /etc/podinfo
 
   steps:
+    - name: get-thread-msg
+      image: saritasallc/python3:0.2
+      script: |
+        #!/usr/bin/env python3
+        import os, sys
+        from slack_sdk import WebClient
+
+        msg_text = "Tekton CI notifications"
+        env_dir = "$(workspaces.source.path)/env"
+        token = os.environ.get("SLACK_API_TOKEN")
+        channel_id = os.environ.get("SLACK_CHANNEL_ID")
+
+        if not token or not channel_id:
+          quit()
+
+        try:
+          client = WebClient(token=token)
+          response = client.pins_list(channel=channel_id).data
+        except SlackApiError as e:
+          # if there is no pinned message - do nothing and slack notification
+          # would be printed in channel
+          print(
+            f"Not able to get pinned deployment message\nTraceback: {e}",
+            file=sys.stdout
+          )
+
+        pinned_messages = list(filter(
+          lambda item: msg_text.lower() in item["message"]["text"].lower(),
+          sorted(response["items"], key=lambda x: x["created"], reverse=True)
+        ))
+        deployment_msg = pinned_messages and pinned_messages[0] or dict()
+        thread = deployment_msg.get("message", {}).get("ts", "")
+
+        if not os.path.exists(env_dir):
+          os.makedirs(env_dir)
+
+        with open(f"{env_dir}/SLACK_THREAD", "w") as f:
+          f.write(thread)
+          print(
+            f"Saved `{thread}` thread in {env_dir}/SLACK_THREAD",
+            file=sys.stdout
+          )
+
     - name: notification
-      image: cloudposse/slack-notifier:sha-d5f4cf0
+      image: cloudposse/slack-notifier:0.4.0
       script: |
         #!/bin/sh
         # tekton injects these labels into pods
@@ -51,6 +100,12 @@ spec:
         status="`echo $(params.status) | tr '[:upper:]' '[:lower:]'`"
 
         echo "result: $status"
+
+        thread_env_file="$(workspaces.source.path)/env/SLACK_THREAD"
+        if [ -f $thread_env_file ]; then
+          thread=$(cat $thread_env_file)
+        fi
+        echo "thread: $thread"
 
         if [ "$status" = "succeeded" ]; then
           color="good"
@@ -71,6 +126,7 @@ spec:
         -user_name "Tekton" \
         -icon_emoji ":white_check_mark:" \
         -color "$color" \
+        -thread "$thread" \
         -author_name "[$(params.application)] by $(params.pusher_name)" \
         -author_link "$(params.pusher_url)" \
         -title "$(params.head_commit_message)" \

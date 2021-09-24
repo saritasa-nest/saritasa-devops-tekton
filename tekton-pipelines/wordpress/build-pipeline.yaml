@@ -23,6 +23,9 @@ spec:
     - name: branch
     - name: kubernetes_namespace
 
+  workspaces:
+    - name: source
+
   tasks:
     - name: wordpress-deployment
       taskRef:
@@ -75,4 +78,6 @@ spec:
           value: "$(tasks.wordpress-deployment.status)"
         # - name: pipelinerun_name
         #   value: "$(tasks.get-pipelinerun-name.results.pipelinerun_name)"
-
+      workspaces:
+        - name: source
+          workspace: source
