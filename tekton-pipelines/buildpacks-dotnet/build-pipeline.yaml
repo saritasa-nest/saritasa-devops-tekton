@@ -52,6 +52,9 @@ spec:
     - name: kubernetes_branch
       type: string
       default: main
+    - name: platform_dir
+      type: string
+      default: "platform"
 
   workspaces:
     - name: source
@@ -65,6 +68,24 @@ spec:
       type: image
 
   tasks:
+    - name: set-env-vars
+      taskRef:
+        name: set-env-vars
+      resources:
+        inputs:
+          - name: app
+            resource: app
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: environment
+          value: "$(params.environment)"
+        - name: platform_dir
+          value: "$(params.platform_dir)"
+      workspaces:
+        - name: source
+          workspace: source
+
     - name: buildpack-dotnet
       taskRef:
         name: buildpack-dotnet
@@ -92,9 +113,13 @@ spec:
           value: "$(params.environment)"
         - name: source_subpath
           value: "$(params.source_subpath)"
+        - name: platform_dir
+          value: "$(params.platform_dir)"
       workspaces:
         - name: source
           workspace: source
+      runAfter:
+        - set-env-vars
 
     - name: kustomize
       taskRef:

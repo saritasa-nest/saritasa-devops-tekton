@@ -33,7 +33,6 @@ spec:
       default: ""
     - name: platform_dir
       description: The name of the platform directory.
-      default: empty-dir
     - name: user_id
       description: The user ID of the builder image user.
       default: "1000"
@@ -55,7 +54,6 @@ spec:
     - name: docker_registry
       description: "AWS Private ecr registry address"
     - name: environment
-
 
   stepTemplate:
     env:
@@ -139,7 +137,7 @@ spec:
           -project-metadata=$(resources.inputs.app.path)/project.toml \
           -cache-dir=/cache \
           -layers=/layers \
-          -platform=/platform \
+          -platform=$(workspaces.source.path)/$(params.platform_dir) \
           -report=/layers/report.toml \
           -cache-image=$(params.cache_image) \
           -uid=$(params.user_id) \
@@ -155,8 +153,6 @@ spec:
           mountPath: /layers
         - name: $(params.cache)
           mountPath: /cache
-        - name: $(params.platform_dir)
-          mountPath: /platform
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
