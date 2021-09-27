@@ -93,7 +93,7 @@ spec:
               - name: url
                 value: $(tt.params.repository_ssh_url)
               - name: revision
-                value: $(tt.params.head_commit)
+                value: $(tt.params.branch)
               - name: depth
                 value: '0' # this is important as we run GitVersion tool and it needs it to identify the revision automatically
         - name: kubernetes-repo
