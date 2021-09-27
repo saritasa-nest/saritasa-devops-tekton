@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: build-bot-sa
+  namespace: tekton-pipelines
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-defaults
+  namespace: tekton-pipelines
+data:
+  default-service-account: "build-bot-sa"
+  default-timeout-minutes: "30"
+  default-pod-template: |
+    nodeSelector:
+      ci: "true"
+

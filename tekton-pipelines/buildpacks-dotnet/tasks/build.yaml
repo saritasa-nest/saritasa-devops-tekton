@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: buildpack
+  name: buildpack-dotnet
 spec:
   description: >-
     The Buildpacks task builds source into a container image and pushes it to a AWS ECR registry,
@@ -21,6 +21,8 @@ spec:
   params:
     - name: application
       description: The name of the application being built
+    - name: branch
+      description: The git branch we build
     - name: builder_image
       description: The image on which builds will run (must include lifecycle and compatible buildpacks).
     - name: cache
@@ -84,72 +86,40 @@ spec:
       securityContext:
         privileged: true
 
-    - name: python
-      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
+    
+    - name: fetch-tags
+      workingDir: $(resources.inputs.app.path)
+      image: jnewland/git-and-stuff
       script: |
-        #!/usr/bin/env bash
-        set -e
-
-        APP=$(resources.inputs.app.path)
-
-        # python related
-        # we should have a requirements.txt file in the build folder for our buildpack to work correctly
-        # as a result we just copy it.
-        if [ -f $APP/manage.py ]; then
-          case $(params.environment) in
-
-            dev|develop|development)
-              [ -f $APP/requirements/dev.txt ]         && cp $APP/requirements/dev.txt $APP/requirements.txt
-              [ -f $APP/requirements/develop.txt ]     && cp $APP/requirements/develop.txt $APP/requirements.txt
-              [ -f $APP/requirements/development.txt ] && cp $APP/requirements/development.txt $APP/requirements.txt
-              ;;
-            staging)
-              [ -f $APP/requirements/staging.txt ]     && cp $APP/requirements/staging.txt $APP/requirements.txt
-              ;;
-            prod|production)
-              [ -f $APP/requirements/prod.txt ]        && cp $APP/requirements/prod.txt $APP/requirements.txt
-              [ -f $APP/requirements/production.txt ]  && cp $APP/requirements/production.txt $APP/requirements.txt
-              ;;
-            *)
-              cp $APP/requirements/$(params.environment).txt $APP/requirements.txt
-              ;;
-          esac
-
-          [ -f $APP/requirements.txt ] && echo "Found requirements.txt" || exit 1
-        fi
-
-    - name: nodejs
-      image: node:14
-      script: |
-        #!/bin/bash
-        set -e
-
-        APP=$(resources.inputs.app.path)
-
-        if [ -f $APP/package.json ]; then
-          cd $APP
-          yes | npm install --silent
-          npm run build:$(params.environment) || echo "unable to build  $(params.environment)"
-          rm -rf node_modules && echo "remove node_modules dir"
-        fi
+        git fetch --tags
+        
       securityContext:
         privileged: true
+        runAsUser: 0
 
-    - name: php
-      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
+    - name: getversion
+      workingDir: $(resources.inputs.app.path)
+      image: gittools/gitversion:5.6.10-alpine.3.12-x64-3.1
       script: |
-        #!/usr/bin/env bash
-        set -e
+        #!/usr/bin/env ash
+        git tag
+        # so we are making a hack, that if we try to merge hotfix branch into main we should 
+        [ -e GitVersion.yml ] && /tools/dotnet-gitversion | grep hotfix 1>/dev/null && (echo "hotfix"; rm -rf GitVersion.yml; cp GitVersion-hotfix.yml GitVersion.yml)
 
-        APP=$(resources.inputs.app.path)
-
-        # php related
-        # Workaround to fix no PHP detection, when package.json presents
-
-        if [[ -f $APP/composer.json && -f $APP/package.json ]]; then
-          rm -f $APP/package.json
-          ls -la $APP
+        # since this is a busybox we can't use bash regexp here
+        if echo $(params.branch) | grep -E '^refs/heads/(main|release/[0-9.]+)$' > /dev/null;
+        then
+          local_tags=$(git tag --points-at HEAD)
+          echo "remove local head tags"
+          echo $local_tags
+          git tag -d $local_tags
         fi
+        
+        /tools/dotnet-gitversion /updateprojectfiles
+        git status
+        chown -R "$(params.user_id):$(params.group_id)" "$(workspaces.source.path)"
+        chown -R "$(params.user_id):$(params.group_id)" "$(resources.inputs.app.path)"
+        echo "DONE"
 
     # if you need to debug this step you can do:
     # k exec -ti `k --no-headers=true get pods -l tekton.dev/task=buildpack | awk '{print $1}'` -c step-create bash
@@ -163,8 +133,8 @@ spec:
 
         # build image utilizing backpack
         /cnb/lifecycle/creator \
-          -app=/workspace/app/$(params.source_subpath) \
-          -project-metadata=/workspace/app/project.toml \
+          -app=$(resources.inputs.app.path)/$(params.source_subpath) \
+          -project-metadata=$(resources.inputs.app.path)/project.toml \
           -cache-dir=/cache \
           -layers=/layers \
           -platform=$(workspaces.source.path)/$(params.platform_dir) \

@@ -31,7 +31,6 @@ spec:
       default: ""
     - name: platform_dir
       description: The name of the platform directory.
-      default: empty-dir
     - name: user_id
       description: The user ID of the builder image user.
       default: "1000"
@@ -85,18 +84,17 @@ spec:
           mountPath: /cache
       securityContext:
         privileged: true
-
     
     - name: nodejs
       image: node:14
       script: |
         #!/bin/bash
         # nodejs related
-        if [ -f app/package.json ]; then
-          cd app
+        if [ -f $(resources.inputs.app.path)/package.json ]; then
+          cd $(resources.inputs.app.path)
           yes | npm install --silent
           npm run build:$(params.environment) || echo "unable to build $(params.environment)"
-          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*} $(params.source_subpath) 2>/dev/null
+          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*,httpd.conf,.http.d,httpd.d} $(params.source_subpath) 2>/dev/null
           chown -R $(params.user_id):$(params.group_id) $(params.source_subpath)
 
         else
@@ -117,11 +115,11 @@ spec:
 
         # build image utilizing backpack
         /cnb/lifecycle/creator \
-          -app=app/$(params.source_subpath) \
-          -project-metadata=/workspace/app/project.toml \
+          -app=$(resources.inputs.app.path)/$(params.source_subpath) \
+          -project-metadata=$(resources.inputs.app.path)/project.toml \
           -cache-dir=/cache \
           -layers=/layers \
-          -platform=/platform \
+          -platform=$(workspaces.source.path)/$(params.platform_dir) \
           -report=/layers/report.toml \
           -cache-image=$(params.cache_image) \
           -uid=$(params.user_id) \
@@ -137,8 +135,6 @@ spec:
           mountPath: /layers
         - name: $(params.cache)
           mountPath: /cache
-        - name: $(params.platform_dir)
-          mountPath: /platform
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000

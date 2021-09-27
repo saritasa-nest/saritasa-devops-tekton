@@ -1,5 +1,4 @@
 # Purpose
 
-- Tekton pipelines 0.24.2 and compatible tekton ui and tekton triggers
-- Saritasa reusable tekton pipelines
+- Tekton pipelines 0.27.0 and compatible tekton ui and tekton triggers
 

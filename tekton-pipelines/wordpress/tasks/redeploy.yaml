@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: redeploy
+spec:
+  description: >-
+    Deletes pod from the deployment and waits for deployment to bring a new one
+  params:
+    - name: application
+      description: The name of the argocd application being built
+    - name: kubernetes_namespace
+      description: Namespace in which we need to redeploy
+  steps:
+    - name: deploy
+      image: bitnami/kubectl:latest
+      script: |
+        kubectl -n $(params.kubernetes_namespace) delete pod -l "app.kubernetes.io/instance=$(params.application)"
+        kubectl -n $(params.kubernetes_namespace) rollout status deployment $(params.application) -w

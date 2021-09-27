@@ -9,26 +9,45 @@ spec:
 
   params:
     - name: application
+      type: string
     - name: project
+      type: string
       default: "" # set to empty default to accomodate currently running triggers
     - name: sha
+      type: string
     - name: head_commit
+      type: string
     - name: head_commit_message
+      type: string
     - name: pusher_name
+      type: string
     - name: pusher_email
+      type: string
     - name: pusher_avatar
+      type: string
     - name: pusher_url
+      type: string
     - name: repository_url
+      type: string
     - name: repository_ssh_url
+      type: string
     - name: branch
+      type: string
     - name: docker_registry
+      type: string
     - name: docker_registry_repository
+      type: string
     - name: environment
+      type: string
     - name: docker_file
+      type: string
     - name: docker_context
+      type: string
     - name: kubernetes_repository_kustomize_path
+      type: string
       default: ".kubernetes/manifests/dev"
     - name: kubernetes_branch
+      type: string
       default: main
 
   workspaces:

@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: buildpack-frontend-build-pipeline
+  name: buildpack-dotnet-build-pipeline
 spec:
   description: >-
     Pipeline will only build the image utilizing buildpacks and then send notification via slack.
@@ -86,9 +86,9 @@ spec:
         - name: source
           workspace: source
 
-    - name: buildpack-frontend
+    - name: buildpack-dotnet
       taskRef:
-        name: buildpack-frontend
+        name: buildpack-dotnet
       resources:
           inputs:
             - name: app
@@ -99,6 +99,8 @@ spec:
       params:
         - name: application
           value: "$(params.application)"
+        - name: branch
+          value: $(params.branch) # this comes from el
         - name: builder_image
           value: "$(params.buildpack_builder_image)"
         - name: run_image
@@ -142,7 +144,7 @@ spec:
         - name: environment
           value: "$(params.environment)"
       runAfter:
-        - buildpack-frontend
+        - buildpack-dotnet
 
     - name: argocd-deploy
       taskRef:

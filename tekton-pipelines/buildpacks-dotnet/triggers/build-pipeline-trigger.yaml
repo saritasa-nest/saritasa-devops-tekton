@@ -4,7 +4,7 @@
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
-  name: buildpack-build-pipeline-trigger-template
+  name: buildpack-dotnet-build-pipeline-trigger-template
 spec:
   params:
     - name: application
@@ -41,7 +41,7 @@ spec:
         - taskName: kustomize
           serviceAccountName: $(tt.params.application)-build-pipeline-kustomize-sa
       pipelineRef:
-        name: buildpack-build-pipeline
+        name: buildpack-dotnet-build-pipeline
       params:
         - name: "application"
           value: "$(tt.params.application)"
@@ -94,6 +94,8 @@ spec:
                 value: $(tt.params.repository_ssh_url)
               - name: revision
                 value: $(tt.params.head_commit)
+              - name: depth
+                value: '0' # this is important as we run GitVersion tool and it needs it to identify the revision automatically
         - name: kubernetes-repo
           resourceSpec:
             type: git

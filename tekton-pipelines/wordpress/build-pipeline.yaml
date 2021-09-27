@@ -1,0 +1,78 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: wordpress-build-pipeline
+spec:
+  description: >-
+    Pipeline will trigger redeployments of the POD of the deployment managed by the bitnami wordpress
+    chart. 
+
+  params:
+    - name: application
+    - name: project
+    - name: sha
+    - name: head_commit
+    - name: head_commit_message
+    - name: pusher_name
+    - name: pusher_email
+    - name: pusher_avatar
+    - name: pusher_url
+    - name: repository_url
+    - name: repository_ssh_url
+    - name: environment
+    - name: branch
+    - name: kubernetes_namespace
+
+  tasks:
+    - name: wordpress-deployment
+      taskRef:
+        name: redeploy
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: kubernetes_namespace
+          value: "$(params.kubernetes_namespace)"
+
+    - name: get-pipelinerun-name
+      taskRef:
+        name: get-pipelinerun-name
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: tekton_namespace
+          value: "ci"
+      runAfter: 
+        - wordpress-deployment
+
+  finally:
+    - name: slack-notification
+      taskRef:
+        name: slack-notification
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: sha
+          value: "$(params.sha)"
+        - name: head_commit
+          value: "$(params.head_commit)"
+        - name: head_commit_message
+          value: "$(params.head_commit_message)"
+        - name: pusher_name
+          value: "$(params.pusher_name)"
+        - name: pusher_email
+          value: "$(params.pusher_email)"
+        - name: pusher_avatar
+          value: "$(params.pusher_avatar)"
+        - name: pusher_url
+          value: "$(params.pusher_url)"
+        - name: repository_url
+          value: "$(params.repository_url)"
+        - name: branch
+          value: "$(params.branch)"
+        - name: environment
+          value: "$(params.environment)"
+        - name: status
+          value: "$(tasks.wordpress-deployment.status)"
+        # - name: pipelinerun_name
+        #   value: "$(tasks.get-pipelinerun-name.results.pipelinerun_name)"
+

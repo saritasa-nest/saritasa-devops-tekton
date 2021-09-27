@@ -9,29 +9,52 @@ spec:
 
   params:
     - name: application
+      type: string
     - name: project
+      type: string
       default: "" # set to empty default to accomodate currently running triggers
     - name: sha
+      type: string
     - name: head_commit
+      type: string
     - name: head_commit_message
+      type: string
     - name: pusher_name
+      type: string
     - name: pusher_email
+      type: string
     - name: pusher_avatar
+      type: string
     - name: pusher_url
+      type: string
     - name: repository_url
+      type: string
     - name: repository_ssh_url
+      type: string
     - name: branch
+      type: string
     - name: buildpack_builder_image
+      type: string
     - name: buildpack_runner_image
+      type: string
     - name: docker_registry
+      type: string
     - name: docker_registry_repository
+      type: string
     - name: environment
+      type: string
     - name: source_subpath
+      type: string
       default: ""
     - name: kubernetes_repository_kustomize_path
+      type: string
       default: ".kubernetes/manifests/dev"
     - name: kubernetes_branch
+      type: string
       default: main
+    - name: platform_dir
+      type: string
+      default: "platform"
 
   workspaces:
     - name: source
@@ -45,6 +68,24 @@ spec:
       type: image
 
   tasks:
+    - name: set-env-vars
+      taskRef:
+        name: set-env-vars
+      resources:
+        inputs:
+          - name: app
+            resource: app
+      params:
+        - name: application
+          value: "$(params.application)"
+        - name: environment
+          value: "$(params.environment)"
+        - name: platform_dir
+          value: "$(params.platform_dir)"
+      workspaces:
+        - name: source
+          workspace: source
+
     - name: buildpack
       taskRef:
         name: buildpack
@@ -70,9 +111,13 @@ spec:
           value: "$(params.environment)"
         - name: source_subpath
           value: "$(params.source_subpath)"
+        - name: platform_dir
+          value: "$(params.platform_dir)"
       workspaces:
         - name: source
           workspace: source
+      runAfter:
+        - set-env-vars
 
     - name: kustomize
       taskRef:
