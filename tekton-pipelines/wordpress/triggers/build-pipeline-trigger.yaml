@@ -58,10 +58,6 @@ spec:
           value: "$(tt.params.branch)"
         - name: kubernetes_namespace
           value: "$(tt.params.kubernetes_namespace)"
-      workspaces:
-        - name: source
-          persistentVolumeClaim:
-            claimName: $(tt.params.application)-workspace-pvc
       podTemplate:
         volumes:
         - name: podinfo

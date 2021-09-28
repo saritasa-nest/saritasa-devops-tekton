@@ -7,9 +7,6 @@ spec:
     Send slack notification with various information about pipeline progress/result.
     You can see my question about dealing with task status here: https://github.com/tektoncd/pipeline/issues/3762
 
-  workspaces:
-    - name: source
-
   params:
     - name: application
     - name: sha
@@ -26,6 +23,10 @@ spec:
     - name: pipelinerun_name
       default: "reserved"
 
+  results:
+    - name: thread
+      description: Slack thread in which tekton CI notifications should be sent.
+
   stepTemplate:
     envFrom:
       - configMapRef:
@@ -33,6 +34,8 @@ spec:
       - secretRef:
           name: $(params.application)-slack-secret  # used for webhook URL, channel_id
       - secretRef:
+          # Slack docs to obtain token
+          # https://github.com/saritasa-nest/saritasa-devops-docs/blob/main/_infra/slack.md#get-slack-api-token
           name: slack-api-token-secret  # used for slack api token (common for all projects)
 
     env:
@@ -46,47 +49,10 @@ spec:
 
   steps:
     - name: get-thread-msg
-      image: saritasallc/python3:0.2
+      image: saritasallc/python3:0.3
       script: |
-        #!/usr/bin/env python3
-        import os, sys
-        from slack_sdk import WebClient
-
-        msg_text = "Tekton CI notifications"
-        env_dir = "$(workspaces.source.path)/env"
-        token = os.environ.get("SLACK_API_TOKEN")
-        channel_id = os.environ.get("SLACK_CHANNEL_ID")
-
-        if not token or not channel_id:
-          quit()
-
-        try:
-          client = WebClient(token=token)
-          response = client.pins_list(channel=channel_id).data
-        except SlackApiError as e:
-          # if there is no pinned message - do nothing and slack notification
-          # would be printed in channel
-          print(
-            f"Not able to get pinned deployment message\nTraceback: {e}",
-            file=sys.stdout
-          )
-
-        pinned_messages = list(filter(
-          lambda item: msg_text.lower() in item["message"]["text"].lower(),
-          sorted(response["items"], key=lambda x: x["created"], reverse=True)
-        ))
-        deployment_msg = pinned_messages and pinned_messages[0] or dict()
-        thread = deployment_msg.get("message", {}).get("ts", "")
-
-        if not os.path.exists(env_dir):
-          os.makedirs(env_dir)
-
-        with open(f"{env_dir}/SLACK_THREAD", "w") as f:
-          f.write(thread)
-          print(
-            f"Saved `{thread}` thread in {env_dir}/SLACK_THREAD",
-            file=sys.stdout
-          )
+        #!/usr/bin/env sh
+        echo $(python get-thread | jq ".thread" -r) | tee $(results.thread.path)
 
     - name: notification
       image: cloudposse/slack-notifier:0.4.0
@@ -101,10 +67,7 @@ spec:
 
         echo "result: $status"
 
-        thread_env_file="$(workspaces.source.path)/env/SLACK_THREAD"
-        if [ -f $thread_env_file ]; then
-          thread=$(cat $thread_env_file)
-        fi
+        thread="$(cat $(results.thread.path))"
         echo "thread: $thread"
 
         if [ "$status" = "succeeded" ]; then
