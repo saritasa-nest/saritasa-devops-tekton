@@ -23,12 +23,21 @@ spec:
     - name: pipelinerun_name
       default: "reserved"
 
+  results:
+    - name: thread
+      description: Slack thread in which tekton CI notifications should be sent.
+
   stepTemplate:
     envFrom:
       - configMapRef:
           name: $(params.application)-build-pipeline-config
       - secretRef:
-          name: $(params.application)-slack-secret  # used for webhook URL
+          name: $(params.application)-slack-secret  # used for webhook URL, channel_id
+      - secretRef:
+          # Slack docs to obtain token
+          # https://github.com/saritasa-nest/saritasa-devops-docs/blob/main/_infra/slack.md#get-slack-api-token
+          name: slack-api-token-secret  # used for slack api token (common for all projects)
+
     env:
       - name: POD_NAME
         valueFrom:
@@ -39,8 +48,14 @@ spec:
         mountPath: /etc/podinfo
 
   steps:
+    - name: get-thread-msg
+      image: saritasallc/python3:0.3
+      script: |
+        #!/usr/bin/env sh
+        echo $(python get-thread | jq ".thread" -r) | tee $(results.thread.path)
+
     - name: notification
-      image: cloudposse/slack-notifier:sha-d5f4cf0
+      image: cloudposse/slack-notifier:0.4.0
       script: |
         #!/bin/sh
         # tekton injects these labels into pods
@@ -51,6 +66,9 @@ spec:
         status="`echo $(params.status) | tr '[:upper:]' '[:lower:]'`"
 
         echo "result: $status"
+
+        thread="$(cat $(results.thread.path))"
+        echo "thread: $thread"
 
         if [ "$status" = "succeeded" ]; then
           color="good"
@@ -71,6 +89,7 @@ spec:
         -user_name "Tekton" \
         -icon_emoji ":white_check_mark:" \
         -color "$color" \
+        -thread "$thread" \
         -author_name "[$(params.application)] by $(params.pusher_name)" \
         -author_link "$(params.pusher_url)" \
         -title "$(params.head_commit_message)" \

@@ -58,7 +58,6 @@ spec:
           value: "$(tt.params.branch)"
         - name: kubernetes_namespace
           value: "$(tt.params.kubernetes_namespace)"
-
       podTemplate:
         volumes:
         - name: podinfo

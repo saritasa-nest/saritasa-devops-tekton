@@ -75,4 +75,3 @@ spec:
           value: "$(tasks.wordpress-deployment.status)"
         # - name: pipelinerun_name
         #   value: "$(tasks.get-pipelinerun-name.results.pipelinerun_name)"
-

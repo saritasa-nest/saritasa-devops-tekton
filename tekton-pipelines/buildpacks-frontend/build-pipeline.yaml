@@ -184,4 +184,3 @@ spec:
           value: "$(params.environment)"
         - name: status
           value: "$(tasks.argocd-deploy.status)"
-
