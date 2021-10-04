@@ -32,7 +32,7 @@ spec:
       - configMapRef:
           name: $(params.application)-build-pipeline-config
       - secretRef:
-          name: $(params.application)-slack-secret  # used for webhook URL, channel_id
+          name: $(params.application)-slack-secret  # used for webhook URL
       - secretRef:
           # Slack docs to obtain token
           # https://github.com/saritasa-nest/saritasa-devops-docs/blob/main/_infra/slack.md#get-slack-api-token
@@ -49,7 +49,7 @@ spec:
 
   steps:
     - name: get-thread-msg
-      image: saritasallc/python3:0.3
+      image: saritasallc/python3:0.4
       script: |
         #!/usr/bin/env sh
         echo $(python get-thread | jq ".thread" -r) | tee $(results.thread.path)
