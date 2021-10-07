@@ -29,6 +29,19 @@ spec:
     # - https://github.com/buildpacks/tekton-integration/issues/33
     # - https://github.com/buildpacks/tekton-integration/issues/32
     # TODO: check in the future and adjust when project.toml is clear to be supported.
+    - name: clean-prev-env-vars
+      image: docker.io/library/bash:5.1.4@sha256:b208215a4655538be652b2769d82e576bc4d0a2bb132144c060efc5be8c3f5d6
+      script: |
+        #!/usr/bin/env bash
+        set -e
+
+        # clean platform env dir before new run, so when env var is removed from project.toml file it wouldn't influence the build
+        ENV_PATH=$(workspaces.source.path)/$(params.platform_dir)/env
+        if [ -d $ENV_PATH ]; then
+          echo "clean everything from $ENV_PATH"
+          rm $ENV_PATH/*
+        fi
+
     - name: set-env-vars
       image: saritasallc/python3:0.1@sha256:cb4be451c918cbd924e5380b1027afa66e232c8524e75afd4c2c771df213210e
       script: |
