@@ -65,7 +65,7 @@ spec:
       args:
         - --dockerfile=$(resources.inputs.app.path)/$(params.docker_file)
         - --context=$(resources.inputs.app.path)/$(params.docker_context)
-        - --build-arg=ENVIRONMENT=$(ENVIRONMENT)
+        - --build-arg=ENVIRONMENT=$(params.environment)
         - --destination=$(resources.outputs.image.url)
         # - --verbosity=debug
 
