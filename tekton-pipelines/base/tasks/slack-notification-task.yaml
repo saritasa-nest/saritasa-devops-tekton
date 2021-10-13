@@ -68,7 +68,14 @@ spec:
         #!/bin/sh
 
         pipelinerun_name=$(awk -F= '/tekton.dev\/pipelineRun/ {gsub(/"/, "", $2);print $2}' /etc/podinfo/labels)
-        kubectl -n ci get pipelinerun $pipelinerun_name -o json | jq '[.status.taskRuns | to_entries[] | select ( .value.status.conditions[0].reason == "Failed") | { task: .value.pipelineTaskName, pod: .value.status.podName, steps: .value.status.steps[] } | select (.steps.terminated.reason == "Error")][0] | { task: .task, pod: .pod, step: .steps.name }' > $(results.failed_info.path)
+
+        # get failed info from pipelinerun name
+        kubectl -n ci get pipelinerun $pipelinerun_name -o json |
+          jq '[.status.taskRuns | to_entries[] | select ( .value.status.conditions[0].reason == "Failed") |
+          { task: .value.pipelineTaskName, pod: .value.status.podName, steps: .value.status.steps[] } |
+          select (.steps.terminated.reason == "Error")][0] | { task: .task, pod: .pod, step: .steps.name }' \
+          > $(results.failed_info.path)
+
         failed_pod_name=$(cat $(results.failed_info.path) | jq '.pod' -r)
         failed_task=$(cat $(results.failed_info.path) | jq '.task' -r)
         failed_step=$(cat $(results.failed_info.path) | jq '.step' -r)
