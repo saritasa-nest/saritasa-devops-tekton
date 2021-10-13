@@ -81,7 +81,7 @@ spec:
         failed_step=$(cat $(results.failed_info.path) | jq '.step' -r)
 
         if [ "$failed_pod_name" != "null" ] && [ "$failed_step" != "null" ]; then
-          kubectl -n ci logs $failed_pod_name -c step-$failed_step > $(results.logs.path)
+          kubectl -n ci logs $failed_pod_name -c step-$failed_step | tail -c 1982 > $(results.logs.path)
           echo $failed_task > $(results.failed_task.path)
           echo $failed_step > $(results.failed_step.path)
         fi
