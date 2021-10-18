@@ -49,6 +49,13 @@ spec:
       image: alpine/git
       script: |
         cd $(inputs.resources.kubernetes-repo.path)
+
+        # apply changes only if it exists, otherwise do nothing
+        if [ ! `git status --porcelain` ]; then
+          echo "There are no changes, nothing to commit"
+          exit
+        fi
+
         # the params.branch comes from github push event and looks like this: "refs/heads/staging"
         # so we had to get only the end of the string
         # branch=`echo $(params.branch)| awk -F\/ '$0=$3'`
@@ -57,5 +64,3 @@ spec:
         # mkdir /root/.ssh && cp -r $HOME/.ssh/* /root/.ssh
         # git push
         git push origin HEAD:$(params.kubernetes_branch)
-        
-
