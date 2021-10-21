@@ -30,15 +30,19 @@ spec:
           --grpc-web \
           --grpc-web-root-path $ARGOCD_ROOT_PATH \
           --server $ARGOCD_SERVER
-        
+
         argocd app wait $(params.application) \
-          --health \
+          --health=true \
+          --operation=true \
           --grpc-web \
           --grpc-web-root-path $ARGOCD_ROOT_PATH \
           --server $ARGOCD_SERVER
 
-        # jq is not available in this image
-        # synced=`argocd app get $(params.application) -o json | jq .status.sync.status | tr -d \"`
-        # synced=`argocd app get $(params.application) | grep "Sync Status" | awk '{print $3}'`
+        synced=`argocd app get $(params.application) | grep "Sync Status:" | awk '{print $3}'`
         healthy=`argocd app get $(params.application) | grep "Health Status:" | awk '{print $3}'`
-        [[ "$healthy" == "Healthy" ]] && echo "Sync completed succcessfully" || (echo "Failed" && exit 1)
+        if [ "$synced" == "Synced" ] && [ "$healthy" == "Healthy" ]; then
+          echo "Sync completed succcessfully"
+        else
+          echo "Sync failed"
+          exit 1
+        fi
