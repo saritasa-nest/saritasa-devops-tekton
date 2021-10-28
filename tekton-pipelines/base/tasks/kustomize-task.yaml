@@ -49,18 +49,32 @@ spec:
       image: alpine/git
       script: |
         cd $(inputs.resources.kubernetes-repo.path)
+        git checkout $(params.kubernetes_branch)
 
         # apply changes only if it exists, otherwise do nothing
-        if [ ! `git status --porcelain` ]; then
+        if [ "`git status --porcelain`" = "" ]; then
           echo "There are no changes, nothing to commit"
           exit
         fi
 
-        # the params.branch comes from github push event and looks like this: "refs/heads/staging"
-        # so we had to get only the end of the string
-        # branch=`echo $(params.branch)| awk -F\/ '$0=$3'`
-        # git checkout $branch
-        git commit -am "feat: $(params.environment) argocd deployment $(params.kustomize_overlay_path), new image: $(params.image)"
-        # mkdir /root/.ssh && cp -r $HOME/.ssh/* /root/.ssh
-        # git push
-        git push origin HEAD:$(params.kubernetes_branch)
+        # define retry delays appropriate for dash
+        set -- "0" "1" "3" "5"
+        for DELAY
+        do
+          if [ "$DELAY" != "0" ]; then
+            echo "retry in ${DELAY}s"
+          fi
+          sleep $DELAY
+
+          # check whether there are changes between local and remote
+          git fetch origin $(params.kubernetes_branch)
+          LOCAL_COMMIT=`git rev-parse @`
+          REMOTE_COMMIT=`git rev-parse origin/$(params.kubernetes_branch)`
+          if [ $LOCAL_COMMIT != $REMOTE_COMMIT ]; then
+            echo "Need to pull new changes"
+            git pull origin HEAD:$(params.kubernetes_branch)
+          fi
+
+          git commit -am "feat: $(params.environment) argocd deployment $(params.kustomize_overlay_path), new image: $(params.image)"
+          git push origin HEAD:$(params.kubernetes_branch) && break || true
+        done
