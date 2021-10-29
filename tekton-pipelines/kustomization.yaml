@@ -8,5 +8,6 @@ resources:
   - buildpacks
   - buildpacks-frontend
   - buildpacks-dotnet
+  - buildpacks-jekyll
   - kaniko
   - wordpress
