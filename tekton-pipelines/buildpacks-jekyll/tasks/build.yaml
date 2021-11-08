@@ -94,7 +94,6 @@ spec:
           cd $(resources.inputs.app.path)
           yes | bundle install --quiet
           bundle exec jekyll build
-          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*,httpd.conf,.http.d,httpd.d} $(params.source_subpath) 2>/dev/null
           chown -R $(params.user_id):$(params.group_id) $(params.source_subpath)
 
         else
