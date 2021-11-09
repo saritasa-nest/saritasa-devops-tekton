@@ -94,6 +94,8 @@ spec:
           cd $(resources.inputs.app.path)
           yes | bundle install --quiet
           bundle exec jekyll build
+          # cp for nginx/apache configs removed couse `jekyll build` already copy
+          # all contents of `app.path` to `_site` (source_subpath)
           chown -R $(params.user_id):$(params.group_id) $(params.source_subpath)
 
         else
