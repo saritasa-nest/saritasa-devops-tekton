@@ -94,7 +94,7 @@ spec:
           cd $(resources.inputs.app.path)
           yes | npm install --silent
           npm run build:$(params.environment) || echo "unable to build $(params.environment)"
-          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*,httpd.conf,.http.d,httpd.d} $(params.source_subpath) 2>/dev/null
+          cp -rf {project.toml,nginx.conf,buildpack.yml,nginx.d,.nginx.d,nginx.*,httpd.conf,.http.d,httpd.d,.well-known} $(params.source_subpath) 2>/dev/null
           chown -R $(params.user_id):$(params.group_id) $(params.source_subpath)
 
         else
