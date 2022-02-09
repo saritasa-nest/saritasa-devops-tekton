@@ -72,7 +72,7 @@ spec:
           REMOTE_COMMIT=`git rev-parse origin/$(params.kubernetes_branch)`
           if [ $LOCAL_COMMIT != $REMOTE_COMMIT ]; then
             echo "Need to pull new changes"
-            git pull origin HEAD:$(params.kubernetes_branch)
+            git pull --rebase origin HEAD:$(params.kubernetes_branch)
           fi
 
           git commit -am "feat: $(params.environment) argocd deployment $(params.kustomize_overlay_path), new image: $(params.image)"
